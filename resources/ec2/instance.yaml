@@ -1,0 +1,995 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EC2 Instance with optional Route 53 DNS Records. The template contains Cloud-Init code that will pre-install AWS-CLI Tools, CFN-Bootstrap, CFN-Hup and the Puppet Agent together with some service scripts for additional functionality (triggered after creation).'
+
+################################################################################
+#
+# Decision Trees:
+#
+#   DNS entries:
+#     HostedZoneName != ''
+#       true  -> Created
+#       false -> None [default]
+#
+#   EBS Volumes:
+#     <VOL>VolumeSize != 0
+#       true  -> Created
+#       false -> None [default]
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Naming details'
+        Parameters:
+          - RootStackName
+          - NameSuffix
+          - HostName
+      - Label:
+          default: 'Instance configuration'
+        Parameters:
+          - AvailabilityZone
+          - ImageId
+          - InstanceType
+          - RootKeyName
+          - SecurityGroupIds
+          - SubnetId
+      - Label:
+          default: 'Instance configuration (optional)'
+        Parameters:
+          - FeatureAutoSnapshot
+          - FeatureUptimeWindows
+          - InstanceProfile
+      - Label:
+          default: '/opt (optional)'
+        Parameters:
+          - VolumeOptDeviceName
+          - VolumeOptEncryption
+          - VolumeOptIops
+          - VolumeOptSize
+          - VolumeOptType
+      - Label:
+          default: '/tmp (optional)'
+        Parameters:
+          - VolumeTmpDeviceName
+          - VolumeTmpEncryption
+          - VolumeTmpIops
+          - VolumeTmpSize
+          - VolumeTmpType
+      - Label:
+          default: '/var (optional)'
+        Parameters:
+          - VolumeVarDeviceName
+          - VolumeVarEncryption
+          - VolumeVarIops
+          - VolumeVarSize
+          - VolumeVarType
+      - Label:
+          default: 'DNS Record configuration (optional)'
+        Parameters:
+          - DnsServiceToken
+          - HostedZoneName
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  NameSuffix:
+    Description: 'A string used to tell the resources created by different instances of this stack apart (examples: "author01" or "solr03").'
+    Type: String
+
+  RootStackName:
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "search-prod").'
+    Type: String
+
+  HostName:
+    Description: 'The name that will be used for this host and, if created, its DNS name (example: "sites-dev1-author-1"; default: "${RootStackName}-${NameSuffix}").'
+    Type: String
+    Default: ''
+
+  #=======================================
+  # Instance configuration
+  #=======================================
+
+  AvailabilityZone:
+    Description: 'The Availability Zone in which the Instance and its Volumes will be placed.'
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  ImageId:
+    Description: 'The unique ID of the Amazon Machine Image (AMI) the Instance will be created from.'
+    Type: AWS::EC2::Image::Id
+
+  InstanceType:
+    Description: 'The instance type (examples: "t3a.micro" or "m5.xlarge").'
+    Type: String
+
+  RootKeyName:
+    Description: 'The name of the Amazon EC2 key pair that will be used to access the Instance via SSH.'
+    Type: AWS::EC2::KeyPair::KeyName
+
+  SecurityGroupIds:
+    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Instance.'
+    Type: CommaDelimitedList
+
+  SubnetId:
+    Description: 'The ID of the Subnet the Instance will be launched into.'
+    Type: AWS::EC2::Subnet::Id
+
+  #=======================================
+  # Instance configuration (optional)
+  #=======================================
+
+  FeatureAutoSnapshot:
+    Description: 'Whether EBS Volumes should be backed up automatically not. This feature can be enabled by specifying a ScheduleName that was used with the "automatic-snapshots" template (examples: "Daily").'
+    Type: String
+    Default: 'disabled'
+
+  FeatureUptimeWindows:
+    Description: 'A list consisting of two elements in the UNIX cron format, the first representing the start and the second the stop times. If set to "disabled", the instances will run 24/7 (example: "* 4 ? * MON-FRI *", "* 20 ? * MON-FRI *").'
+    Type: CommaDelimitedList
+    # TODO: Update for the new format of having either two cron time-strings or the word "disabled"
+    #   AllowedPattern: '((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})?'
+    Default: 'disabled'
+
+  InstanceProfile:
+    Description: 'The ARN of an IAM Instance Profile that is used to grant this instance permissions, e.g. to register against the configuration manager (Chef/Puppet).'
+    Type: String
+    Default: ''
+
+  #=======================================
+  # /opt (optional)
+  #=======================================
+
+  VolumeOptDeviceName:
+    Description: 'How the device will be exposed to the Instance (examples: "/dev/sdh" or "xvdf").'
+    Type: String
+    Default: 'xvdf'
+
+  VolumeOptEncryption:
+    Description: 'Whether this Volumes should be encrypted or not.'
+    Type: String
+    AllowedValues: [ 'false', 'true' ]
+    Default: 'false'
+
+  VolumeOptIops:
+    Description: 'The number of I/O operations per second (IOPs) that the Volume will support (only used if VolumeOptType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  VolumeOptSize:
+    Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  VolumeOptType:
+    Description: 'The Volume type (if you set the type to "io1" or "io2, you must also set the VolumeOptIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  #=======================================
+  # /tmp (optional)
+  #=======================================
+
+  VolumeTmpDeviceName:
+    Description: 'How the device will be exposed to the Instance (examples: "/dev/sdh" or "xvdf").'
+    Type: String
+    Default: 'xvdg'
+
+  VolumeTmpEncryption:
+    Description: 'Whether this Volumes should be encrypted or not.'
+    Type: String
+    AllowedValues: [ 'false', 'true' ]
+    Default: 'false'
+
+  VolumeTmpIops:
+    Description: 'The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeTmpType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  VolumeTmpSize:
+    Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  VolumeTmpType:
+    Description: 'The volume type (if you set the type to "io1" or "io2, you must also set the VolumeTmpIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  #=======================================
+  # /var (optional)
+  #=======================================
+
+  VolumeVarDeviceName:
+    Description: 'How the device will be exposed to the Instance (examples: "/dev/sdh" or "xvdf").'
+    Type: String
+    Default: 'xvdh'
+
+  VolumeVarEncryption:
+    Description: 'Whether this Volumes should be encrypted or not.'
+    Type: String
+    AllowedValues: [ 'false', 'true' ]
+    Default: 'false'
+
+  VolumeVarIops:
+    Type: Number
+    Description: 'The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeVarType is set to "io1", "io2" or "gp3").'
+    Default: 3000
+
+  VolumeVarSize:
+    Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  VolumeVarType:
+    Description: 'The volume type (if you set the type to "io1" or "io2, you must also set the VolumeVarIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  #=======================================
+  # DNS Record configuration (optional)
+  #=======================================
+
+  DnsServiceToken:
+    Description: 'The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack).'
+    Type: String
+    Default: ''
+
+  HostedZoneName:
+    Description: 'The name of the domain for the Hosted Zone where the Record Sets should be added (if left empty, no DNS Record will be created; example: "my-project.example.com").'
+    Type: String
+    Default: ''
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+  #----------------------------
+  # Naming
+  #----------------------------
+
+  # Whether a Hostname has been explicitly provided or now
+  HasHostName: !Not
+    - !Equals [ !Ref HostName, '' ]
+
+  #----------------------------
+  # Features
+  #----------------------------
+
+  # If the automatic snapshot scheduler is not configured, this feature will be disabled
+  EnableAutoSnapshot: !Not
+    - !Equals [ !Ref FeatureAutoSnapshot, 'disabled' ]
+
+  # If the uptime windows is not configured, this feature will be disabled (the element is a list, so we need to squash it for the comparison)
+  EnableUptimeWindows: !Not
+    - !Equals
+      - !Join [ '', !Ref FeatureUptimeWindows ]
+      - 'disabled'
+
+  # Whether an IAM Instance Profile has been provided or not
+  HasInstanceProfile: !Not
+    - !Equals [ !Ref InstanceProfile, '' ]
+
+  #----------------------------
+  # Network
+  #----------------------------
+
+  # If no Hosted Zone was given, we won't create a DNS Record
+  CreateDnsRecord: !Not
+    - !Equals [ !Ref HostedZoneName, '' ]
+
+  #----------------------------
+  # Storage
+  #----------------------------
+
+  # If the size is 0, then no separate volume should not be created
+  CreateVolumeOpt: !Not
+    - !Equals [ !Ref VolumeOptSize, 0 ]
+
+  # If the size is 0, then no separate volume should not be created
+  CreateVolumeTmp: !Not
+    - !Equals [ !Ref VolumeTmpSize, 0 ]
+
+  # If the size is 0, then no separate volume should not be created
+  CreateVolumeVar: !Not
+    - !Equals [ !Ref VolumeVarSize, 0 ]
+
+  # We need to know if the VolumeType is set to "io1", "io2" or "gp3 so that we later can apply the corresponding settings
+  VolumeOptIsIoConfigurable: !Or
+    - !Equals [ !Ref VolumeOptType, 'gp3' ]
+    - !Or
+      - !Equals [ !Ref VolumeOptType, 'io1' ]
+      - !Equals [ !Ref VolumeOptType, 'io2' ]
+
+  # We need to know if the VolumeType is set to "io1", "io2" or "gp3 so that we later can apply the corresponding settings
+  VolumeTmpIsIoConfigurable: !Or
+    - !Equals [ !Ref VolumeTmpType, 'gp3' ]
+    - !Or
+      - !Equals [ !Ref VolumeTmpType, 'io1' ]
+      - !Equals [ !Ref VolumeTmpType, 'io2' ]
+
+  # We need to know if the VolumeType is set to "io1", "io2" or "gp3" so that we later can apply the corresponding settings
+  VolumeVarIsIoConfigurable: !Or
+    - !Equals [ !Ref VolumeVarType, 'gp3' ]
+    - !Or
+      - !Equals [ !Ref VolumeVarType, 'io1' ]
+      - !Equals [ !Ref VolumeVarType, 'io2' ]
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# Naming Conventions:
+#  - Name attribute: !Sub '${RootStackName}-<identifier>-${NameSuffix}'
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+
+  #=======================================
+  # Instance
+  #=======================================
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref RootKeyName
+      SecurityGroupIds: !Ref SecurityGroupIds
+      SubnetId: !Ref SubnetId
+      IamInstanceProfile: !If
+          - HasInstanceProfile
+          - !Ref InstanceProfile
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${RootStackName}-instance-${NameSuffix}'
+        - !If
+          - EnableUptimeWindows
+          - Key: 'startTime'
+            Value: !Select [ '0', !Ref FeatureUptimeWindows ]
+          - !Ref AWS::NoValue
+        - !If
+          - EnableUptimeWindows
+          - Key: 'stopTime'
+            Value: !Select [ '1', !Ref FeatureUptimeWindows ]
+          - !Ref AWS::NoValue
+      Volumes:
+        - !If
+          - CreateVolumeOpt
+          - Device: !Ref VolumeOptDeviceName
+            VolumeId: !Ref VolumeOpt
+          - !Ref AWS::NoValue
+        - !If
+          - CreateVolumeTmp
+          - Device: !Ref VolumeTmpDeviceName
+            VolumeId: !Ref VolumeTmp
+          - !Ref AWS::NoValue
+        - !If
+          - CreateVolumeVar
+          - Device: !Ref VolumeVarDeviceName
+            VolumeId: !Ref VolumeVar
+          - !Ref AWS::NoValue
+      UserData:
+        Fn::Base64:
+          !Sub |
+              #!/usr/bin/env bash
+              # CentOS (&& RHEL?)
+              # Alternatives: http://www.danieleyer.com/blog/2016/07/15/adding-aws-cfn-bootstrap-cloudformation-helper-scripts-to-custom-linux-amis/
+
+              # Setup cfn-bootstrap
+              if [ -f /etc/centos-release ]; then
+                # CentOS
+                # See: https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
+
+                yum install --assumeyes epel-release
+                yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm
+                ln --symbolic /usr/local/lib/python2.7/site-packages/cfnbootstrap /usr/lib/python2.7/site-packages/cfnbootstrap
+              elif [ -f /etc/redhat-release ]; then
+                # RHEL
+                # See: https://aws.amazon.com/premiumsupport/knowledge-center/install-cloudformation-scripts/
+
+                yum install --assumeyes python-setuptools wget
+                mkdir -p /opt/aws/bin
+                wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+                easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz
+              fi
+
+              # Run cfn-init
+              /opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --resource=Instance --configsets=default,init-set,restart-set --region=${AWS::Region}
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - SetHostname
+            - EnsureAwsCli
+            - EnsureCfnBootstrap
+            - EnsureCfnHup
+            - BootstrapPuppet
+            - BootstrapVolumes
+          init-set:
+            - InitializePuppet
+          restart-set:
+            - OptionalReboot
+
+        # Install the Puppet Agent and register this node with the Puppet Master
+        BootstrapPuppet:
+          files:
+            # Script to associate this node with an OpsWorks Puppet Master
+            # Source: https://docs.aws.amazon.com/opsworks/latest/userguide/opspup-unattend-assoc.html
+            #
+            # Modifications:
+            #   * Removed unused option to hard code values
+            #   * Removed installation of the AWS CLI since it would've worked only for Ubuntu anyway
+            #   * Added alternative that uses the current region for OCM_REGION if the 'ocm_region' Tag is not set
+            #   * Added clean up for downloaded files (/tmp/puppet-agent-bootstrap-0.2.1.tar.gz)
+
+            # sets up puppet and connects it to the puppetmaster
+            /opt/aws/init/bootstrap-puppet.sh:
+              content: |
+                #!/usr/bin/env bash
+
+                # ************************************
+                # This file is managed by CloudFormation
+                # Do not modify!
+                # ************************************
+
+                set -euo pipefail
+
+                # extra optional settings
+                AWS_CLI_EXTRA_OPTS=()
+
+                function set_aws_settings {
+                  export PP_INSTANCE_ID=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/instance-id)
+
+                  # this uses the EC2 instance ID as the node name
+                  export PP_IMAGE_NAME=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/ami-id)
+                  export PP_REGION=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
+
+                  # we're detecting if a tag is set. If so, override anything in the file
+                  export TAG_SERVER=$(/usr/local/aws/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_server`].Value' --output text)
+                  export TAG_REGION=$(/usr/local/aws/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_region`].Value' --output text)
+
+                  if [ -n ${TAG_SERVER} ] && [ ! -z ${TAG_SERVER} ]; then
+                    export OCM_SERVER=${TAG_SERVER}
+                  fi
+
+                  if [ -n ${TAG_REGION} ] && [ ! -z ${TAG_REGION} ]; then
+                    export OCM_REGION=${TAG_REGION}
+                  else
+                    export OCM_REGION=${PP_REGION}
+                  fi
+
+                  # get PuppetMaster metadata
+                  PM_ENDPOINT=$(/usr/local/aws/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[?ServerName=='${OCM_SERVER}'].Endpoint" --output text)
+
+                  # set global settings
+                  export PUPPETSERVER=$PM_ENDPOINT
+                  export PRUBY='/opt/puppetlabs/puppet/bin/ruby'
+                  export PUPPET='/opt/puppetlabs/bin/puppet'
+                  export DAEMONSPLAY='true'
+                  export SPLAYLIMIT='180'
+                  export PUPPET_CA_PATH='/etc/puppetlabs/puppet/ssl/certs/ca.pem'
+                }
+
+                function prepare_puppet {
+                  mkdir -p /opt/puppetlabs/puppet/cache/state
+                  mkdir -p /etc/puppetlabs/puppet/ssl/certs/
+                  mkdir -p /etc/puppetlabs/code/modules/
+
+                  echo "{\"disabled_message\":\"Locked by OpsWorks Deploy - $(date --iso-8601=seconds)\"}" > /opt/puppetlabs/puppet/cache/state/agent_disabled.lock
+                }
+
+                function establish_trust {
+                  /usr/local/aws/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > /etc/puppetlabs/puppet/ssl/certs/ca.pem
+                }
+
+                function install_puppet {
+                  ADD_EXTENSIONS=$(generate_csr_attributes)
+                  curl --cacert /etc/puppetlabs/puppet/ssl/certs/ca.pem --retry 3 "https://${PUPPETSERVER}:8140/packages/current/install.bash" | \
+                    /bin/bash -s agent:certname=${PP_INSTANCE_ID} \
+                      agent:splay=${DAEMONSPLAY} \
+                      extension_requests:pp_instance_id=${PP_INSTANCE_ID} \
+                      extension_requests:pp_region=${PP_REGION} \
+                      extension_requests:pp_image_name=${PP_IMAGE_NAME} ${ADD_EXTENSIONS}
+
+                  ${PUPPET} resource service puppet ensure=stopped
+                }
+
+                function generate_csr_attributes {
+                  pp_tags=$(/usr/local/aws/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?starts_with(Key, `pp_`)].[Key,Value]' --output text | sed s/[[:blank:]]/=/)
+                  if [ -z ${pp_tags} ]; then
+                    # couldn't describe tags, check permissions in the IAM role
+                    return 0
+                  fi
+
+                  csr_attrs=""
+                  for i in $pp_tags; do
+                    csr_attrs="${csr_attrs} extension_requests:${i}"
+                  done
+
+                  echo ${csr_attrs}
+                }
+
+                function install_puppet_bootstrap {
+                  ${PUPPET} help bootstrap > /dev/null && bootstrap_installed=true || bootstrap_installed=false
+                  if [ "${bootstrap_installed}" = false ]; then
+                    echo "Puppet Bootstrap not present, installing"
+                    curl --retry 3 https://s3-eu-west-1.amazonaws.com/opsworks-cm-eu-west-1-beta-default-assets/misc/owpe/puppet-agent-bootstrap-0.2.1.tar.gz -o /tmp/puppet-agent-bootstrap-0.2.1.tar.gz
+                    ${PUPPET} module install /tmp/puppet-agent-bootstrap-0.2.1.tar.gz --ignore-dependencies
+                    rm /tmp/puppet-agent-bootstrap-0.2.1.tar.gz
+                    echo "Puppet Bootstrap installed"
+                  else
+                    echo "Puppet Bootstrap already present"
+                  fi
+                }
+
+                function associate_node {
+                  CERTNAME=$(${PUPPET} config print certname --section agent)
+                  SSLDIR=$(${PUPPET} config print ssldir --section agent)
+                  PP_CSR_PATH="${SSLDIR}/certificate_requests/${CERTNAME}.pem"
+                  PP_CERT_PATH="${SSLDIR}/certs/${CERTNAME}.pem"
+
+                  # clear out extraneous certs and generate a new one
+                  ${PUPPET} bootstrap purge
+                  ${PUPPET} bootstrap csr
+
+                  # submit the cert
+                  ASSOCIATE_TOKEN=$(/usr/local/aws/bin/aws opsworks-cm associate-node --region ${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --node-name ${CERTNAME} --engine-attributes Name=PUPPET_NODE_CSR,Value="`cat ${PP_CSR_PATH}`" --query "NodeAssociationStatusToken" --output text)
+
+                  # wait
+                  /usr/local/aws/bin/aws opsworks-cm wait node-associated --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-}
+                  # install and verify
+                  /usr/local/aws/bin/aws opsworks-cm describe-node-association-status --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query 'EngineAttributes[0].Value' --output text > ${PP_CERT_PATH}
+
+                  ${PUPPET} bootstrap verify
+                }
+
+                function run_puppet {
+                  sleep $[ ( ${RANDOM} % ${SPLAYLIMIT} ) + 1]s
+                  ${PUPPET} agent --enable
+                  ${PUPPET} agent --onetime --verbose --no-daemonize --no-usecacheonfailure --no-splay --show_diff
+                  ${PUPPET} resource service puppet ensure=running enable=true
+                }
+
+                # order of execution of functions
+                set_aws_settings
+                prepare_puppet
+                establish_trust
+                install_puppet
+                install_puppet_bootstrap
+                associate_node
+                run_puppet
+
+                ## script ran successfully.
+                # Delete the cron file that triggers this script!
+                rm -f /etc/cron.d/bootstrap-puppet-starter*
+              mode: "000744"
+              owner: "root"
+              group: "root"
+
+        # Find, format and mount volumes attached to this Instance
+        BootstrapVolumes:
+          files:
+            /opt/aws/init/bootstrap-volumes.sh:
+              content: |
+                #!/usr/bin/env bash
+
+                # ************************************
+                # This file is managed by CloudFormation
+                # Do not modify!
+                # ************************************
+
+                # **************************************************************************** #
+                # Imports and functions                                                        #
+                # **************************************************************************** #
+
+                # Get the device name of an EBS Volume attached to a host using NVMe (on those, the predefined device name will be ignored and instead a name calculated by NVMe will be used)
+                # See: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/nvme-ebs-volumes.html
+                #
+                # @param String   VOLUME_ID	  The EBS Volume ID (example: 'vol-0218b8b99fe422a1c')
+                #
+                # @return String  The device name (e.g. '/dev/nvme1n1') of the specified Volume or failure (return code 1)
+                function AWS::EC2::getNvmeDeviceName() {
+                  local -r VOLUME_ID="${1:-}"; shift;
+
+                  # Parameter validation
+                  [[ -z ${VOLUME_ID} ]] && return 1
+
+                  local BlockDevice=$( lsblk --nodeps --noheadings --output NAME,SERIAL | grep "${VOLUME_ID//-}" )
+
+                  # If the result is empty, this can mean either
+                  # A: The Volume is not attached to this host (in NVMe systems the Volume ID is used as disk serial number and thus should show up in 'lsblk') or
+                  # B: Instance is not using NVMe and thus the device name must have been wrong
+                  # In either way, we stop here.
+                  [[ -z ${BlockDevice} ]] && return 1
+
+                  # Return the real device name (first element of the 'lsblk' entry)
+                  echo "/dev/${BlockDevice%% *}"
+                }
+
+
+                # Formats DEVICE and, if specified, syncs the content of MOUNT_POINT to it.
+                #
+                # @param String   DEVICE	      The device of the new Volume (example: '/dev/nvme1n1')
+                # @param String   FS_TYPE	      The file system of DEVICE (example: 'ext4')
+                # @param String   MOUNT_POINT	  Optional: The designated mount point for DEVICE /opt')
+                #
+                # @return Bool  True when the device was prepared successfully, otherwise false
+                function prepareNewVolume() {
+                  local -r DEVICE="${1:-}"; shift;
+                  local -r FS_TYPE="${1:-}"; shift;
+                  local -r MOUNT_POINT="${1:-}"; shift;
+
+                  # Parameter validation
+                  [[ ! -b ${DEVICE} ]] && return 1
+                  [[ -z ${FS_TYPE} ]] && return 1
+
+                  # Format the device if it is not already formatted with the desired FS:
+                  #   if ! file --special-files --dereference ${DEVICE} | grep filesystem || [[ $( lsblk -no FSTYPE ${DEVICE} ) != ${FS_TYPE} ]]; then
+                  # Format the device if it is not already formatted at all
+                  if ! file --special-files --dereference ${DEVICE} | grep filesystem; then
+                    mkfs --type ${FS_TYPE} ${DEVICE} || return 1
+                    # It takes a few moments for the UUID to become available after formatting
+                    sleep 5
+                  fi
+
+                  if [[ -n ${MOUNT_POINT} ]]; then
+                    # (re-)add an entry for ${MOUNT_POINT} if a VolumeID has been specified
+                    mkdir --parents "${MOUNT_POINT}"
+
+                    # Temporarily mount ${DEVICE} at a tmp folder for data migration
+                    local TmpMountPoint=$( mktemp --directory --tmpdir="/mnt" )
+                    mount --types "${FS_TYPE}" --source "${DEVICE}" --target "${TmpMountPoint}" || return 1
+
+                    # Sync all data from ${MOUNT_POINT} to prevent data loss
+                    rsync --archive --update --one-file-system --xattrs  "${MOUNT_POINT}"/* "${TmpMountPoint}"
+
+                    # Unmount ${DEVICE} from its temporary location and, if successful delete ${TmpMountPoint}
+                    umount "${TmpMountPoint}" && rm --recursive --force "${TmpMountPoint}"
+                  fi
+
+                  return 0
+                }
+
+
+                # **************************************************************************** #
+                # Init                                                                         #
+                # **************************************************************************** #
+
+                # The device that should be used for the Volume (example: '/dev/sdh' or 'xvdh') (making sure that it is in the format '/dev/...')
+                declare -r Device="/dev/${1#'/dev/'}"; shift;
+                # The mount point that should be used for the Volume (example: '/opt')
+                declare -r MountPoint=$1; shift;
+                # The file system that should be used for the Volume (example: 'ext4')
+                declare -r FileSystemType=$1; shift;
+                # The EBS Volume ID (example: 'vol-0218b8b99fe422a1c')
+                declare -r VolumeID=$1; shift;
+
+                # Parameter validation
+                [[ -z ${Device} ]] && exit 1
+                [[ -z ${MountPoint} ]] && exit 1
+                [[ -z ${FileSystemType} ]] && exit 1
+
+
+                # **************************************************************************** #
+                # Main                                                                         #
+                # **************************************************************************** #
+
+                # Delete existing entries for ${MountPoint} in the fstab (to prevent false matches)
+                sed --in-place "\@ ${MountPoint} @d" /etc/fstab
+
+                # If no VolumeID has been specified, we assume that it is no longer attached to this instance and thus will stop here (kind of a fail-safe)
+                [[ -z ${VolumeID} ]] && exit 0
+
+                # If the device does not exist, this can mean either
+                # A: The device name is wrong or
+                # B: The Instance is using NVMe (on those, the predefined device name will be ignored and instead a name calculated by NVMe will be used)
+                if [[ -e ${Device} ]]; then
+                  RealDeviceName="${Device}"
+                else
+                  RealDeviceName=$( AWS::EC2::getNvmeDeviceName ${VolumeID} ) || exit 1
+                fi
+
+                # If the Volume is not already mounted at ${MountPoint}, format it and sync the contents of ${MountPoint} to it (spaces to prevent false matches)
+                if ! ( grep --no-messages "${RealDeviceName} " /proc/mounts | grep --no-messages --quiet " ${MountPoint} " ); then
+                  prepareNewVolume "${RealDeviceName}" "${FileSystemType}" "${MountPoint}" || exit 1
+
+                  # Signal to a later running script that a reboot is required (and be kind by even leaving a note with who requested it ;) )
+                  echo "${BASH_SOURCE[@]} ${Device} ${MountPoint} ${FileSystemType} ${VolumeID}" >> /tmp/.reboot-required
+                fi
+
+                # Use UUID to mount the device in the future (device names can change with NVMe)
+                UUID=$( lsblk --noheadings --output UUID ${RealDeviceName} ) || exit 1
+                echo "UUID=${UUID}    ${MountPoint}    ${FileSystemType}    defaults    0    0" >> /etc/fstab
+
+                exit 0
+              mode: "000744"
+              owner: "root"
+              group: "root"
+          commands:
+            0100_bootstrap_opt:
+              command: !If
+                - CreateVolumeOpt
+                - !Sub '/opt/aws/init/bootstrap-volumes.sh "${VolumeOptDeviceName}" "/opt" "ext4" "${VolumeOpt}"'
+                - !Sub '/opt/aws/init/bootstrap-volumes.sh "${VolumeOptDeviceName}" "/opt" "ext4"'
+            0200_bootstrap_tmp:
+              command: !If
+                - CreateVolumeTmp
+                - !Sub '/opt/aws/init/bootstrap-volumes.sh "${VolumeTmpDeviceName}" "/tmp" "ext4" "${VolumeTmp}" && systemctl unmask tmp.mount'
+                - !Sub '/opt/aws/init/bootstrap-volumes.sh "${VolumeTmpDeviceName}" "/tmp" "ext4" && systemctl mask tmp.mount'
+            0300_bootstrap_var:
+              command: !If
+                - CreateVolumeVar
+                - !Sub '/opt/aws/init/bootstrap-volumes.sh "${VolumeVarDeviceName}" "/var" "ext4" "${VolumeVar}"'
+                - !Sub '/opt/aws/init/bootstrap-volumes.sh "${VolumeVarDeviceName}" "/var" "ext4"'
+
+        # Make sure the AWS CLI Tools are present
+        EnsureAwsCli:
+          sources:
+            /opt/aws: 'https://s3.amazonaws.com/aws-cli/awscli-bundle.zip'
+          commands:
+            0100_install_awscli:
+              command: '/opt/aws/awscli-bundle/install --install-dir="/usr/local/aws" --bin-location="/usr/local/bin/aws"'
+            # Fix: __main__.MultipleBundlesError: Multiple versions of the CLI were found in /opt/aws/awscli-bundle/packages. Please clear out this directory before proceeding.
+            0200_cleanup:
+              command: 'rm -rf /opt/aws/awscli-bundle'
+
+        # Make sure the AWS CloudFormation Helper Scripts are present
+        # See: https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
+        EnsureCfnBootstrap:
+          commands:
+            0100_yum_reinstall_cfn_bootstrap:
+              test: 'which yum && rpm -q aws-cfn-bootstrap'
+              command: 'yum reinstall --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm'
+            0200_yum_install_cfn_bootstrap_centos:
+              test: 'which yum && ! rpm -q aws-cfn-bootstrap && test -f /etc/centos-release'
+              command: 'yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm'
+            0300_yum_install_cfn_bootstrap_rhel:
+              test: 'which yum && ! rpm -q aws-cfn-bootstrap && test ! -f /etc/centos-release'
+              command: 'cd /tmp && wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz && easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz'
+
+        # Make sure the cfn-hup helper that detects changes in resource metadata and runs user-specified actions when a change is detected are present
+        # See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-hup.html
+        EnsureCfnHup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+              mode: "000400"
+              owner: "root"
+              group: "root"
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.Instance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init --stack=${AWS::StackName} --resource=Instance --configsets=default,restart-set --region=${AWS::Region}
+                runas=root
+            /lib/systemd/system/cfn-hup.service:
+              content: |
+                [Unit]
+                Description=cfn-hup daemon
+
+                [Service]
+                Type=simple
+                ExecStart=/opt/aws/bin/cfn-hup
+                Restart=always
+
+                [Install]
+                WantedBy=multi-user.target
+          commands:
+            0100_systemd_enable_cfn_hup:
+              test: 'test $(ps --no-headers -o comm 1) == "systemd"'
+              command: "systemctl enable cfn-hup.service"
+            0200_systemd_start_cfn_hup:
+              test: 'test $(ps --no-headers -o comm 1) == "systemd"'
+              command: 'systemctl start cfn-hup.service'
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - "/etc/cfn/cfn-hup.conf"
+                  - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+
+        # Is only started in initial run of cfn-init and sets a puppet installer cronjob
+        InitializePuppet:
+          files:
+            # Script to trigger the Puppet Master script in section 'BootstrapPuppet' sets up a cronjob that triggers the puppet script install.
+            # Necessary workaround due to network delay during the first setup of an ec2-instance
+            /etc/cron.d/bootstrap-puppet-starter:
+              content: |
+                # ************************************
+                # This file is managed by CloudFormation
+                # Do not modify!
+                # ************************************
+                SHELL=/bin/bash
+                PATH=/sbin:/bin:/usr/sbin:/usr/bin
+                MAILTO=root
+                */5 * * * * root /opt/aws/init/bootstrap-puppet.sh >> /opt/aws/init/bootstrap-puppet.log 2>&1
+              mode: "000644"
+              owner: "root"
+              group: "root"
+
+        # Reboots the Instance if required by other steps (e.g. BootstrapVolumes)
+        OptionalReboot:
+          commands:
+            0100_reboot:
+              test: 'test -f /tmp/.reboot-required'
+              command: 'rm --force /tmp/.reboot-required; reboot'
+
+        # Set the host name to something more verbose
+        SetHostname:
+          commands:
+            0100_sysconfig:
+              command: !Sub
+                - 'echo HOSTNAME=${ActualHostName} >> /etc/sysconfig/network'
+                - ActualHostName: !If
+                    - HasHostName
+                    - !Ref HostName
+                    - !Sub '${RootStackName}-${NameSuffix}'
+            0200_systemd:
+              test: 'test $(ps --no-headers -o comm 1) == "systemd"'
+              command: !Sub
+                - 'hostnamectl set-hostname ${ActualHostName}'
+                - ActualHostName: !If
+                    - HasHostName
+                    - !Ref HostName
+                    - !Sub '${RootStackName}-${NameSuffix}'
+
+  #=======================================
+  # Volumes
+  #=======================================
+
+  # The Volume that will be mounted to /opt
+  VolumeOpt:
+    Condition: CreateVolumeOpt
+    Type: AWS::EC2::Volume
+    DeletionPolicy: 'Delete'
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      Encrypted: !Ref VolumeOptEncryption
+      Iops: !If
+        - VolumeOptIsIoConfigurable
+        - !Ref VolumeOptIops
+        - !Ref AWS::NoValue
+      Size: !Ref VolumeOptSize
+      VolumeType: !Ref VolumeOptType
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${RootStackName}-volume-${NameSuffix}-opt'
+        - !If
+          - EnableAutoSnapshot
+          - Key: 'AutomaticSnapshots'
+            Value: !Ref FeatureAutoSnapshot
+          - !Ref AWS::NoValue
+
+  # The Volume that will be mounted to /tmp
+  VolumeTmp:
+    Condition: CreateVolumeTmp
+    Type: AWS::EC2::Volume
+    DeletionPolicy: 'Delete'
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      Encrypted: !Ref VolumeTmpEncryption
+      Iops: !If
+        - VolumeTmpIsIoConfigurable
+        - !Ref VolumeTmpIops
+        - !Ref AWS::NoValue
+      Size: !Ref VolumeTmpSize
+      VolumeType: !Ref VolumeTmpType
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${RootStackName}-volume-${NameSuffix}-tmp'
+        - !If
+          - EnableAutoSnapshot
+          - Key: 'AutomaticSnapshots'
+            Value: !Ref FeatureAutoSnapshot
+          - !Ref AWS::NoValue
+
+  # The Volume that will be mounted to /var
+  VolumeVar:
+    Condition: CreateVolumeVar
+    Type: AWS::EC2::Volume
+    DeletionPolicy: 'Delete'
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      Encrypted: !Ref VolumeVarEncryption
+      Iops: !If
+        - VolumeVarIsIoConfigurable
+        - !Ref VolumeVarIops
+        - !Ref AWS::NoValue
+      Size: !Ref VolumeVarSize
+      VolumeType: !Ref VolumeVarType
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${RootStackName}-volume-${NameSuffix}-var'
+        - !If
+          - EnableAutoSnapshot
+          - Key: 'AutomaticSnapshots'
+            Value: !Ref FeatureAutoSnapshot
+          - !Ref AWS::NoValue
+
+  #=======================================
+  # Route 53 DNS Records
+  #=======================================
+
+  # The optional DNS Record for the instance
+  DnsRecords:
+    Condition: CreateDnsRecord
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: '../r53/dns-records.yaml'
+      Parameters:
+        # DNS Record configuration
+        #
+        DnsName: !Sub '${RootStackName}-${NameSuffix}'
+        HostedZoneName: !Ref HostedZoneName
+        Target: !GetAtt Instance.PrivateIp
+        Type: 'A'
+
+        # Remote DNS Record configuration (optional)
+        #
+        ServiceToken: !Ref DnsServiceToken
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# Naming Conventions:
+#  - Logical ID: <same-ID-that-was-used-for-the-resource>
+#  - Export Name: <same-name-that-was-used-for-the-resource>
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+
+  InstanceId:
+    Description: 'The ID of the created Instance.'
+    Value: !Ref Instance

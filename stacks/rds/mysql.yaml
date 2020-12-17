@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'A private MySQL engine RDS Instance.'
+
+################################################################################
+#
+# Decision Trees:
+#
+#   Network configuration:
+#     AdditionalInboundCidr != ''
+#       true  -> Add an allowed inbound rule to the MySQL SG
+#       false -> No additional inbound rules are added to the SG
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Naming details'
+        Parameters:
+          - RootStackName
+          - NameSuffix
+      - Label:
+          default: 'Network configuration'
+        Parameters:
+          - SubnetIds
+          - VpcId
+      - Label:
+          default: 'RDS Instance configuration'
+        Parameters:
+          - DBInstanceClass
+          - DBInstanceEngineVersion
+          - DBInstancePort
+          - DBInstanceSecurityGroupIds
+          - MasterUserPasswordSsmSecureName
+          - MasterUserPasswordSsmSecureVersion
+      - Label:
+          default: 'DNS Record configuration (optional)'
+        Parameters:
+          - DnsServiceToken
+          - HostedZoneName
+          - TimeToLive
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  RootStackName:
+    Description: 'Name of the top-level stack to which this stack, if nested, ultimately belongs (this stacks name else).'
+    Type: String
+
+  NameSuffix:
+    Description: 'A string used to tell the different RDS Instances apart (examples: "1" or "2").'
+    Type: String
+
+  #=======================================
+  # Network configuration
+  #=======================================
+
+  SubnetIds:
+    Description: 'The IDs of the Subnets, the RDS Instance should be placed into (example: "subnet-1234567890abcdefg, subnet-abcdefg1234567890, subnet-12345abcdefg67890").'
+    Type: CommaDelimitedList
+
+  VpcId:
+    Description: 'ID of the VPC in which resources should be created.'
+    Type: String
+
+  #=======================================
+  # RDS Instance configuration
+  #=======================================
+
+  DBInstanceClass:
+    Description: 'The Instance Class of the RDS Instance to launch (example: "db.r5.xlarge").'
+    Type: String
+
+  DBInstanceEngineVersion:
+    Description: 'The version number of the database engine to use (example: "5.7.26").'
+    Type: String
+    Default: '5.7.26'
+
+  DBInstancePort:
+    Description: 'The port number on which the database accepts connections (example: 3306).'
+    Type: String
+    Default: '3306'
+
+  DBInstanceSecurityGroupIds:
+    Description: 'A list that contains the IDs for VPC Security Groups to assign to the RDS Instance.'
+    Type: CommaDelimitedList
+
+  MasterUserPasswordSsmSecureName:
+    Description: 'Name of the SECURE SSM parameter that contains the MasterUserPassword (from AWS Systems Manager Parameter Store).'
+    Type: String
+
+  MasterUserPasswordSsmSecureVersion:
+    Description: 'Version of the SECURE SSM parameter that contains the MasterUserPassword (from AWS Systems Manager Parameter Store).'
+    Type: String
+    Default: '1'
+
+  #=======================================
+  # DNS Record configuration (optional)
+  #=======================================
+
+  DnsServiceToken:
+    Description: 'The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack).'
+    Type: String
+    Default: ''
+
+  HostedZoneName:
+    Description: 'The name of the domain for the Hosted Zone where the DNS Record Sets should be added (if left empty, no DNS Record will be created; example: "my-project.example.com").'
+    Type: String
+    Default: ''
+
+  TimeToLive:
+    Description: 'The private DNS Records cache time to live (TTL), in seconds.'
+    Type: Number
+    Default: 300
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+
+  # If a Hosted Zone has been provided, we will create a DNS Record
+  CreateDnsRecord: !Not
+    - !Equals [ !Ref HostedZoneName, '' ]
+
+  #----------------------------
+  # Network
+  #----------------------------
+
+  # Whether an additional inbound CIDR has been specified
+  AddInboundCidr: !Not
+    - !Equals ['', !Ref AdditionalInboundCidr]
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+
+  # A subnet group to deploy RDS Instances to
+  SubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub 'Subnet Group for ${RootStackName}-mysql-instance-${NameSuffix}'
+      DBSubnetGroupName: !Sub '${RootStackName}-mysql-sn-group-${NameSuffix}'
+      SubnetIds: !Ref SubnetIds
+
+  # The Multi-AZ MySQL instance
+  RDSMySQL:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 100
+      AllowMajorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: 'false'
+      MultiAZ: 'true'
+      BackupRetentionPeriod: 15
+      DBInstanceClass: !Ref DBInstanceClass
+      DBInstanceIdentifier: !Sub '${RootStackName}-mysql-instance-${NameSuffix}'
+      DBSubnetGroupName: !Ref SubnetGroup
+      DeleteAutomatedBackups: 'false'
+      DeletionProtection: 'false'
+      EnableCloudwatchLogsExports:
+        - error
+      Engine: 'MySQL'
+      EngineVersion: !Ref DBInstanceEngineVersion
+      MasterUsername: 'root'
+      MasterUserPassword: !Sub '{{resolve:ssm-secure:${MasterUserPasswordSsmSecureName}:${MasterUserPasswordSsmSecureVersion}}}'
+      Port: !Ref DBInstancePort
+      PreferredBackupWindow: '02:30-03:00'
+      PreferredMaintenanceWindow: 'Mon:03:30-Mon:04:30'
+      PubliclyAccessible: 'false'
+      StorageType: 'gp2'
+      StorageEncrypted: 'true'
+      VPCSecurityGroups: !Join [ ',', !Ref DBInstanceSecurityGroupIds ]
+
+  #=======================================
+  # Route 53 DNS Records
+  #=======================================
+
+  # The optional DNS Record for the LB
+  DnsRecords:
+    Condition: CreateDnsRecord
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: '../../resources/r53/dns-records.yaml'
+      Parameters:
+        # DNS Record configuration
+        #
+        DnsName: !Sub '${RootStackName}-mysql-${NameSuffix}'
+        HostedZoneName: !Ref HostedZoneName
+        Target: !GetAtt RDSMySQL.Endpoint.Address
+        TimeToLive: !Ref TimeToLive
+        Type: 'CNAME'
+
+        # Remote DNS Record configuration (optional)
+        #
+        ServiceToken: !Ref DnsServiceToken
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+
+  DBInstancePort:
+    Description: 'The port number on which the database accepts connections (example: 3306).'
+    Value: !Ref DBInstancePort

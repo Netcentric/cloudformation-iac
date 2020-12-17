@@ -1,0 +1,228 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Infrastructure for automatic, schedule based shutdown of EC2 instances'
+
+################################################################################
+# EC2 automated shutdown / startup
+#
+# Tags to the EC2 instances needs to be added
+#
+# To have this lambda function it needs "CAPABILITIES_IAM", that means that the aws deploy command needs to
+# have extra arg "--capabilities CAPABILITY_IAM".
+#
+# Format:
+#   Key          Value
+#   startTime    * 4,5 * * 1,2,3,4,5 *
+#   stopTime     * 19,20 * * 1,2,3,4,5 *
+#
+# Description:
+# Due to daylight changes, that's why between 4 and 5 it's the start of the instance and between 19 and 20 it's the shutdown. This way
+# you can avoid a massive change of the time and hour due to daylight changes which happens twice per year.
+# Value 1,2,3,4,5 describes the Weekday, meaning that during 6,7 (saturday and sunday) instances are turned off.
+#
+# With a custom Jenkins Job, you can start those instances on demand our of working hours.
+################################################################################
+
+################################################################################
+#
+# Decision Trees: none
+#
+################################################################################
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# Naming Conventions:
+#  - Name attribute: !Sub '${RootStackName}-<identifier>'
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  EC2SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Path: "/"
+      Policies:
+        - PolicyName: "ec2SchedulerPermissions"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:log-group:/aws/lambda/*"
+              - Effect: "Allow"
+                Action:
+                  - "ec2:StartInstances"
+                  - "ec2:StopInstances"
+                  - "ec2:DescribeRegions"
+                  - "ec2:DescribeInstances"
+                  - "cloudwatch:PutMetricData"
+                  - "cloudformation:DescribeStacks"
+                  - "kms:CreateGrant"
+                  - "kms:RetireGrant"
+                  - "kms:ListGrants"
+                  - "kms:Encrypt"
+                  - "kms:Decrypt"
+                  - "kms:ReEncrypt*"
+                  - "kms:DescribeKey"
+                  - "kms:GenerateDataKey*"
+                Resource: "*"
+
+  EventRole:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - LambdaFunction
+      - CloudwatchEvent
+    Properties:
+      FunctionName: !Ref LambdaFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt CloudwatchEvent.Arn
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: EC2SchedulerRole
+    Properties:
+      Handler: 'index.handler'
+      Role: !GetAtt EC2SchedulerRole.Arn
+      Description: 'EC2 Scheduler Lambda function for automatically starting and stopping EC2 instances.'
+      Code:
+        ZipFile: |
+          'use strict';
+          const aws = require('aws-sdk');
+          aws.config.update({region: 'eu-central-1'});
+          const ec2 = new aws.EC2();
+
+          function getKey(keys, instance) {
+            let res = {};
+            if (instance.Tags) {
+              instance.Tags.forEach((tag) => {
+                if (keys.indexOf(tag.Key) !== -1 && tag.Value) {
+                  res[tag.Key] = tag.Value;
+                }
+              });
+            }
+            return res;
+          }
+
+          function check(time, currentHour, currentDay){
+            let parts = time.split(' ');
+            let hour = parseInt(parts[1]);
+            let days = (parts[4].length>1)? parts[4].split(',') : [parts[4]];
+            days.forEach((d,i)=>{
+              days[i]=parseInt(d);
+            });
+            return ( (hour == currentHour) && (days.includes(currentDay)) );
+          }
+
+          function start(instances) {
+            return new Promise((resolve,reject) => {
+              ec2.startInstances({ InstanceIds: instances, DryRun: false }, err => {
+                return (err)?reject(err):resolve();
+              });
+            });
+          }
+
+          function stop(instances) {
+            return new Promise((resolve,reject) => {
+              ec2.stopInstances({ InstanceIds: instances, DryRun: false }, err => {
+                return (err)?reject(err):resolve();
+              });
+            });
+          }
+
+
+          exports.handler = (event, context, callback) => {
+
+            const t = new Date();
+            const currentHour = parseInt(t.getUTCHours());
+            const currentDay = parseInt(t.getDay());
+            console.log(`Current UTC hour is: ${ currentHour } and day of the week: ${ currentDay }`);
+
+            const params = {
+              DryRun: false,
+              Filters: [
+                {
+                  Name: 'tag-key',
+                  Values: [
+                    'startTime',
+                    'stopTime'
+                  ]
+                }
+              ]
+            };
+
+            ec2.describeInstances(params, (err, instances) => {
+              if (err) {
+                callback(err);
+              } else {
+                console.log(instances.Reservations);
+
+                let instancesToStart = [];
+                let instancesToStop = [];
+                let promises = [];
+
+                instances.Reservations.forEach(ins => {
+
+                  const instance = ins.Instances[0];
+                  const tags = getKey(['startTime', 'stopTime'], instance);
+
+                  console.log("Checking instance (id, tags) => ",instance.InstanceId,tags);
+                  console.log("tags.startTime "+tags.startTime+" instance.State.Name "+instance.State.Name+' instance.InstanceId '+instance.InstanceId);
+                  if (tags.startTime && check(tags.startTime, currentHour, currentDay) && (instance.State.Name === 'stopped')) {
+                    instancesToStart.push(instance.InstanceId);
+                  } else if (tags.stopTime && check(tags.stopTime, currentHour, currentDay) && (instance.State.Name === 'running')) {
+                    instancesToStop.push(instance.InstanceId);
+                  }
+                });
+
+                console.log(`Instances to start: ${instancesToStart}`);
+                console.log(`Instances to stop: ${instancesToStop}`);
+
+                if (instancesToStart.length) {
+                  promises.push(start(instancesToStart));
+                }
+                if (instancesToStop.length) {
+                  promises.push(stop(instancesToStop));
+                }
+                if(promises.length) {
+                  Promise.all(promises).then(
+                    () => callback(),
+                    err => callback(err)
+                  );
+                } else {
+                  callback(null,'Nothing to do');
+                }
+              }
+            });
+
+          };
+      Runtime: 'nodejs10.x'
+      Timeout: '300'
+
+  CloudwatchEvent:
+    Type: AWS::Events::Rule
+    DependsOn: LambdaFunction
+    Properties:
+      Description: "Rule to trigger EC2Scheduler function on a schedule"
+      ScheduleExpression: "cron(0-05 3,4,19,21 ? * MON-FRI *)"
+      State: 'ENABLED'
+      Targets:
+        -
+          Arn: !GetAtt LambdaFunction.Arn
+          Id: 'TargetFunctionV1'

@@ -1,0 +1,387 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Shared VPN infrastructure required for either the modern Transit Gateways or the older Virtual Private Gateways.'
+
+################################################################################
+#
+# Decision Trees:
+#   Setting "CustomerGatewayId" to an empty string (default) will trigger the creation of a new Customer Gateway.
+#   Setting "TransitGatewayId" to an empty string (default) will trigger the creation of a new Transit Gateway- if "VpnSolution" is set to "tgw".
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Naming details'
+        Parameters:
+          - RootStackName
+      - Label:
+          default: 'VPN configuration'
+        Parameters:
+          - CustomerGatewayId
+          - CustomerGatewayPublicIp
+          - CustomerGatewayBgpAsn
+          - CustomerGatewayConnectionType
+          - VpnSolution
+      - Label:
+          default: 'Transit Gateway (optional)'
+        Parameters:
+          - AmazonSideAsn
+          - AutoAcceptSharedAttachments
+          - StaticRoutes
+          - StaticRoutesCount
+          - TransitGatewayId
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  RootStackName:
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "infra" or "nonprod").'
+    Type: String
+
+  #=======================================
+  # VPN configuration
+  #=======================================
+
+  CustomerGatewayId:
+    Description: 'The ID of an existing Internet Gateway (either this or CustomerGatewayPublicIp has to be specified).'
+    Type: String
+    Default: ''
+
+  CustomerGatewayPublicIp:
+    Description: "The internet IP address for the customer gateway's outside interface. The address must be static."
+    Type: String
+    Default: ''
+
+  CustomerGatewayBgpAsn:
+    Description: "The Customer Gateway's Border Gateway Protocol (BGP) Autonomous System Number."
+    Type: Number
+    Default: 65000
+
+  CustomerGatewayConnectionType:
+    Description: 'The type of VPN connection that this customer gateway supports.'
+    Type: String
+    AllowedValues: [ 'ipsec.1' ]
+    Default: 'ipsec.1'
+
+  VpnSolution:
+    Description: 'Indicates which Amazon VPN solution should be used. Options are "Transit Gateway" (tgw) or "Virtual Private Gateway" (vgw).'
+    Type: String
+    AllowedValues: [ 'tgw', 'vgw' ]
+
+
+  #=======================================
+  # Transit Gateway (optional)
+  #=======================================
+
+  AmazonSideAsn:
+    Description: 'The private Autonomous System Number (ASN) for the Amazon side of a BGP session (if not provided, the AWS default will be used).'
+    Type: Number
+    Default: 0
+
+  AutoAcceptSharedAttachments:
+    Description: 'Indicates whether attachment requests are automatically accepted.'
+    Type: String
+    AllowedValues: [ 'disable', 'enable' ]
+    Default: 'disable'
+
+  StaticRoutes:
+    Description: 'A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5).'
+    Type: CommaDelimitedList
+    Default: ''
+
+  StaticRoutesCount:
+    Description: 'The number of CIDR blocks that specified in StaticRoutes (max: 5).'
+    Type: Number
+    AllowedValues: [ 0, 1, 2, 3, 4, 5 ]
+    Default: 0
+
+  TransitGatewayId:
+    Description: 'The ID of an existing Transit Gateway (if not specified, a new one will be created).'
+    Type: String
+    Default: ''
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+
+  # If no ASN was given, we won't specify it in the Transit Gateway
+  SetAmazonSideAsn: !Not
+    - !Equals [ !Ref AmazonSideAsn, 0 ]
+
+  # If no existing Customer Gateway is specified, we have to create our own one
+  CreateCustomerGateway: !Equals [ !Ref CustomerGatewayId, '' ]
+
+  # ...
+  CreateTgwRoute1: !And
+    - !Condition UseTransitGateway
+    - !Or
+      - !Equals [ !Ref StaticRoutesCount, 1 ]
+      - !Condition CreateTgwRoute2
+
+  # ...
+  CreateTgwRoute2: !And
+    - !Condition UseTransitGateway
+    - !Or
+      - !Equals [ !Ref StaticRoutesCount, 2 ]
+      - !Condition CreateTgwRoute3
+
+  # ...
+  CreateTgwRoute3: !And
+    - !Condition UseTransitGateway
+    - !Or
+      - !Equals [ !Ref StaticRoutesCount, 3 ]
+      - !Condition CreateTgwRoute4
+
+  # ...
+  CreateTgwRoute4: !And
+    - !Condition UseTransitGateway
+    - !Or
+      - !Equals [ !Ref StaticRoutesCount, 4 ]
+      - !Condition CreateTgwRoute5
+
+  # ...
+  CreateTgwRoute5: !And
+    - !Condition UseTransitGateway
+    - !Equals [ !Ref StaticRoutesCount, 5 ]
+
+  # If no TransitGatewayId was given, we will create a new one
+  CreateTransitGateway: !And
+    - !Equals
+      - !Ref TransitGatewayId
+      - ''
+    - !Condition UseTransitGateway
+
+  # If the user selected to use a Transit Gateway
+  UseTransitGateway: !Equals
+    - !Ref VpnSolution
+    - 'tgw'
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# Naming Conventions:
+#  - Name attribute: !Sub '${RootStackName}-<identifier>'
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  #=======================================
+  # Shared
+  #=======================================
+
+  VpnCustomerGateway:
+    Condition: CreateCustomerGateway
+    Type: AWS::EC2::CustomerGateway
+    Properties:
+      BgpAsn: !Ref CustomerGatewayBgpAsn
+      IpAddress: !Ref CustomerGatewayPublicIp
+      Tags:
+        - Key: Name
+          Value: !Sub '${RootStackName}-cgw'
+      Type: !Ref CustomerGatewayConnectionType
+
+  #=======================================
+  # Transit Gateway
+  #=======================================
+
+  TransitGateway:
+    Condition: CreateTransitGateway
+    Type: AWS::EC2::TransitGateway
+    Properties:
+      Description: "..."
+      AmazonSideAsn: !If
+        - SetAmazonSideAsn
+        - !Ref AmazonSideAsn
+        - !Ref AWS::NoValue
+      AutoAcceptSharedAttachments: !Ref AutoAcceptSharedAttachments
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${RootStackName}-tgw'
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API (this code block is interpolated from the already available CFT code)
+  #
+  # VpnTransitGatewayAttachment:
+  #   Condition: UseTransitGateway
+  #   Type: AWS::EC2::TransitGatewayAttachment
+  #   Properties:
+  #     CustomerGatewayId: !If
+  #       - CreateCustomerGateway
+  #       - !Ref VpnCustomerGateway
+  #       - !Ref CustomerGatewayId
+  #     StaticRoutesOnly: !If
+  #       # If we want to create one or more static routes, we need static routing
+  #       - CreateTgwRoute1
+  #       - true
+  #       - false
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${RootStackName}-tgw-attachment'
+  #     TransitGatewayId: !If
+  #       - CreateTransitGateway
+  #       - !Ref TransitGateway
+  #       - !Ref TransitGatewayId
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API (without it, it makes no sense to create this Route Table)
+  #
+  # # If we use static routes, a Transit Gateway Route Table is necessary
+  # VpnTransitGatewayRouteTable:
+  #   Condition: CreateTgwRoute1
+  #   Type: AWS::EC2::TransitGatewayRouteTable
+  #   Properties:
+  #     Tags:
+  #       - Key: 'Name'
+  #         Value: !Sub '${RootStackName}-tgw-rt'
+  #     TransitGatewayId: !If
+  #       - CreateTransitGateway
+  #       - !Ref TransitGateway
+  #       - !Ref TransitGatewayId
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API
+  #
+  # # If we use static routes, the VPN-Attachment needs to be associated with the Transit Gateway Route Table
+  # VpnTransitGatewayRouteTableAssociation:
+  #   Condition: CreateTgwRoute1
+  #   Type: AWS::EC2::TransitGatewayRouteTableAssociation
+  #   Properties:
+  #     TransitGatewayAttachmentId: !Ref VpnTransitGatewayAttachment
+  #     TransitGatewayRouteTableId: !Ref VpnTransitGatewayRouteTable
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API
+  #
+  # # If we use static routes, it is a god idea to also enable route propagation
+  # VpnTransitGatewayRouteTablePropagation:
+  #   Condition: CreateTgwRoute1
+  #   DependsOn: [ VpnTransitGatewayRouteTableAssociation ]
+  #   Type: AWS::EC2::TransitGatewayRouteTablePropagation
+  #   Properties:
+  #     TransitGatewayAttachmentId: !Ref VpnTransitGatewayAttachment
+  #     TransitGatewayRouteTableId: !Ref VpnTransitGatewayRouteTable
+
+  #----------------------------
+  # Static Routes
+  #----------------------------
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API
+  #
+  # VpnTransitGatewayRoute1:
+  #   Condition: CreateTgwRoute1
+  #   Type: AWS::EC2::TransitGatewayRoute
+  #   Properties:
+  #     DestinationCidrBlock: !Select [ '0', !Ref StaticRoutes ]
+  #     TransitGatewayAttachmentId: !Ref VpnTransitGatewayAttachment
+  #     TransitGatewayRouteTableId: !Ref VpnTransitGatewayRouteTable
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API
+  #
+  # VpnTransitGatewayRoute2:
+  #   Condition: CreateTgwRoute2
+  #   Type: AWS::EC2::TransitGatewayRoute
+  #   Properties:
+  #     DestinationCidrBlock: !Select [ '1', !Ref StaticRoutes ]
+  #     TransitGatewayAttachmentId: !Ref VpnTransitGatewayAttachment
+  #     TransitGatewayRouteTableId: !Ref VpnTransitGatewayRouteTable
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API
+  #
+  # VpnTransitGatewayRoute3:
+  #   Condition: CreateTgwRoute3
+  #   Type: AWS::EC2::TransitGatewayRoute
+  #   Properties:
+  #     DestinationCidrBlock: !Select [ '2', !Ref StaticRoutes ]
+  #     TransitGatewayAttachmentId: !Ref VpnTransitGatewayAttachment
+  #     TransitGatewayRouteTableId: !Ref VpnTransitGatewayRouteTable
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API
+  #
+  # VpnTransitGatewayRoute4:
+  #   Condition: CreateTgwRoute4
+  #   Type: AWS::EC2::TransitGatewayRoute
+  #   Properties:
+  #     DestinationCidrBlock: !Select [ '3', !Ref StaticRoutes ]
+  #     TransitGatewayAttachmentId: !Ref VpnTransitGatewayAttachment
+  #     TransitGatewayRouteTableId: !Ref VpnTransitGatewayRouteTable
+
+  # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API
+  #
+  # VpnTransitGatewayRoute5:
+  #   Condition: CreateTgwRoute5
+  #   Type: AWS::EC2::TransitGatewayRoute
+  #   Properties:
+  #     DestinationCidrBlock: !Select [ '4', !Ref StaticRoutes ]
+  #     TransitGatewayAttachmentId: !Ref VpnTransitGatewayAttachment
+  #     TransitGatewayRouteTableId: !Ref VpnTransitGatewayRouteTable
+
+  #=======================================
+  # Virtual Private Gateway
+  #=======================================
+
+  # Nothing to do here
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# Naming Conventions:
+#  - Logical ID: <same-ID-that-was-used-for-the-resource>
+#  - Export Name: <same-name-that-was-used-for-the-resource>
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+
+  # Make the CGW available for use in other templates, since there can only exist one per Public IP
+  CustomerGatewayId:
+    Description: 'The ID of the Customer Gateway created for this VPN.'
+    Value: !If
+      - CreateCustomerGateway
+      - !Ref VpnCustomerGateway
+      - !Ref CustomerGatewayId
+
+  TransitGatewayId:
+    Condition: UseTransitGateway
+    Description: 'The ID of the Transit Gateway used for this VPN.'
+    Value: !If
+      - CreateTransitGateway
+      - !Ref TransitGateway
+      - !Ref TransitGatewayId

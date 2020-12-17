@@ -1,0 +1,634 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Host Group consisting of an optional AEM Author, an AEM Publish and corresponding optional Dispatcher Instances'
+
+################################################################################
+#
+# Decision Trees:
+#
+#   Dispatcher Instance:
+#     DispatcherImageId != ''
+#       true  -> Created
+#       false -> None
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Naming details'
+        Parameters:
+          - RootStackName
+          - NameSuffix
+      - Label:
+          default: 'Host Group configuration'
+        Parameters:
+          - AvailabilityZone
+          - FeatureAutoSnapshot
+          - FeatureUptimeWindows
+          - FeatureVolumeEncryption
+          - InstanceProfile
+          - RootKeyName
+          - SubnetId
+      - Label:
+          default: 'Author'
+        Parameters:
+          - AuthorImageId
+          - AuthorSecurityGroupIds
+          - AuthorInstanceType
+          - AuthorVolumeOptIops
+          - AuthorVolumeOptSize
+          - AuthorVolumeOptType
+          - AuthorVolumeTmpIops
+          - AuthorVolumeTmpSize
+          - AuthorVolumeTmpType
+          - AuthorVolumeVarIops
+          - AuthorVolumeVarSize
+          - AuthorVolumeVarType
+      - Label:
+          default: 'Author Dispatcher (optional)'
+        Parameters:
+          - AuthorDispatcherImageId
+          - AuthorDispatcherInstanceType
+          - AuthorDispatcherSecurityGroupIds
+          - AuthorDispatcherVolumeVarIops
+          - AuthorDispatcherVolumeVarSize
+          - AuthorDispatcherVolumeVarType
+      - Label:
+          default: 'Publish'
+        Parameters:
+          - PublishImageId
+          - PublishSecurityGroupIds
+          - PublishInstanceType
+          - PublishVolumeOptIops
+          - PublishVolumeOptSize
+          - PublishVolumeOptType
+          - PublishVolumeTmpIops
+          - PublishVolumeTmpSize
+          - PublishVolumeTmpType
+          - PublishVolumeVarIops
+          - PublishVolumeVarSize
+          - PublishVolumeVarType
+      - Label:
+          default: 'Publish Dispatcher (optional)'
+        Parameters:
+          - PublishDispatcherImageId
+          - PublishDispatcherInstanceType
+          - PublishDispatcherSecurityGroupIds
+          - PublishDispatcherVolumeVarIops
+          - PublishDispatcherVolumeVarSize
+          - PublishDispatcherVolumeVarType
+      - Label:
+          default: 'DNS Record configuration (optional)'
+        Parameters:
+          - DnsServiceToken
+          - HostedZoneName
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  NameSuffix:
+    Description: 'A string used to tell the different Host Groups apart (examples: "1" or "3").'
+    Type: String
+
+  RootStackName:
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "search-prod").'
+    Type: String
+
+  #=======================================
+  # Host Group configuration
+  #=======================================
+
+  AvailabilityZone:
+    Description: 'The Availability Zone in which the Instances and their Volumes will be placed.'
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  FeatureAutoSnapshot:
+    Description: 'Whether EBS Volumes should be backed up automatically not. This feature can be enabled by specifying a ScheduleName that was used with the "automatic-snapshots" template (examples: "Daily").'
+    Type: String
+    Default: 'disabled'
+
+  FeatureUptimeWindows:
+    Description: 'A list consisting of two elements in the UNIX cron format, the first representing the start and the second the stop times. If set to "disabled", the instances will run 24/7 (example: "* 4 ? * MON-FRI *", "* 20 ? * MON-FRI *").'
+    Type: CommaDelimitedList
+    Default: 'disabled'
+
+  FeatureVolumeEncryption:
+    Description: 'Whether all Volumes of all Instance should be encrypted or not.'
+    Type: String
+    AllowedValues: [ 'false', 'true' ]
+    Default: 'false'
+
+  InstanceProfile:
+    Description: 'The ARN of an IAM Instance Profile that is used to grant this instance permissions, e.g. to register against the configuration manager (Chef/Puppet).'
+    Type: String
+    Default: ''
+
+  RootKeyName:
+    Description: 'The name of the Amazon EC2 key pair that will be used to access the Instances via SSH.'
+    Type: AWS::EC2::KeyPair::KeyName
+
+  SubnetId:
+    Description: 'The ID of the Subnet the Instances will be launched into.'
+    Type: AWS::EC2::Subnet::Id
+
+  #=======================================
+  # Author (optional)
+  #=======================================
+
+  AuthorImageId:
+    Description: 'The unique ID of the Amazon Machine Image (AMI) the Author Instance will be created from.'
+    Type: String
+    Default: ''
+
+  AuthorInstanceType:
+    Description: 'The instance type for the Author Instance (examples: "t3a.micro" or "m5.xlarge").'
+    Type: String
+    Default: 't2.small'
+
+  AuthorSecurityGroupIds:
+    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Author Instance.'
+    Type: CommaDelimitedList
+    Default: ''
+
+  AuthorVolumeOptIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/opt" Volume of the Author Instance will support (only used if AuthorVolumeOptType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  AuthorVolumeOptSize:
+    Description: 'The size of the "/opt" Volume of the Author Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  AuthorVolumeOptType:
+    Description: 'The Volume type of the "/opt" Volume of the Author Instance (if you set the type to "io1" or "io2", you must also set the AuthorVolumeOptIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  AuthorVolumeTmpIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/tmp" Volume of the Author Instance will support (only used if AuthorVolumeTmpType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  AuthorVolumeTmpSize:
+    Description: 'The size of the "/tmp" Volume of the Author Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  AuthorVolumeTmpType:
+    Description: 'The Volume type of the "/tmp" Volume of the Author Instance (if you set the type to "io1" or "io2", you must also set the AuthorVolumeTmpIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  AuthorVolumeVarIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/var" Volume of the Author Instance will support (only used if AuthorVolumeVarType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  AuthorVolumeVarSize:
+    Description: 'The size of the "/var" Volume of the Author Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  AuthorVolumeVarType:
+    Description: 'The Volume type of the "/var" Volume of the Author Instance (if you set the type to "io1" or "io2", you must also set the AuthorVolumeVarIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  #=======================================
+  # Author Dispatcher (optional)
+  #=======================================
+
+  AuthorDispatcherImageId:
+    Description: 'The unique ID of the Amazon Machine Image (AMI) the Author Dispatcher Instance will be created from (if this value is empty the Instance will not be created).'
+    Type: String
+    Default: ''
+
+  AuthorDispatcherInstanceType:
+    Description: 'The instance type for the Author Dispatcher Instance (examples: "t3a.micro" or "m5.xlarge").'
+    Type: String
+    Default: 't2.small'
+
+  AuthorDispatcherSecurityGroupIds:
+    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Author Dispatcher Instance.'
+    Type: CommaDelimitedList
+    Default: ''
+
+  AuthorDispatcherVolumeVarIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/var" Volume of the Author Dispatcher Instance will support (only used if AuthorDispatcherVolumeVarType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  AuthorDispatcherVolumeVarSize:
+    Description: 'The size of the "/var" Volume of the Author Dispatcher Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  AuthorDispatcherVolumeVarType:
+    Description: 'The Volume type of the "/var" Volume of the Author Dispatcher Instance (if you set the type to "io1" or "io2", you must also set the AuthorDispatcherVolumeVarIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  #=======================================
+  # Publish
+  #=======================================
+
+  PublishImageId:
+    Description: 'The unique ID of the Amazon Machine Image (AMI) the Publish Instance will be created from.'
+    Type: AWS::EC2::Image::Id
+
+  PublishInstanceType:
+    Description: 'The instance type for the Publish Instance (examples: "t3a.micro" or "m5.xlarge").'
+    Type: String
+    Default: 't2.small'
+
+  PublishSecurityGroupIds:
+    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Publish Instance.'
+    Type: CommaDelimitedList
+    Default: ''
+
+  PublishVolumeOptIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/opt" Volume of the Publish Instance will support (only used if PublishVolumeOptType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  PublishVolumeOptSize:
+    Description: 'The size of the "/opt" Volume of the Publish Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  PublishVolumeOptType:
+    Description: 'The Volume type of the "/opt" Volume of the Publish Instance (if you set the type to "io1" or "io2", you must also set the PublishVolumeOptIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  PublishVolumeTmpIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/tmp" Volume of the Publish Instance will support (only used if PublishVolumeTmpType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  PublishVolumeTmpSize:
+    Description: 'The size of the "/tmp" Volume of the Publish Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  PublishVolumeTmpType:
+    Description: 'The Volume type of the "/tmp" Volume of the Publish Instance (if you set the type to "io1" or "io2", you must also set the PublishVolumeTmpIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  PublishVolumeVarIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/var" Volume of the Publish Instance will support (only used if PublishVolumeVarType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  PublishVolumeVarSize:
+    Description: 'The size of the "/var" Volume of the Publish Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  PublishVolumeVarType:
+    Description: 'The Volume type of the "/var" Volume of the Publish Instance (if you set the type to "io1" or "io2", you must also set the PublishVolumeVarIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  #=======================================
+  # Publish Dispatcher (optional)
+  #=======================================
+
+  PublishDispatcherImageId:
+    Description: 'The unique ID of the Amazon Machine Image (AMI) the Publish Dispatcher Instance will be created from (if this value is empty the Instance will not be created).'
+    Type: String
+    Default: ''
+
+  PublishDispatcherInstanceType:
+    Description: 'The instance type for the Publish Dispatcher Instance (examples: "t3a.micro" or "m5.xlarge").'
+    Type: String
+    Default: 't2.small'
+
+  PublishDispatcherSecurityGroupIds:
+    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Publish Dispatcher Instance.'
+    Type: CommaDelimitedList
+    Default: ''
+
+  PublishDispatcherVolumeVarIops:
+    Description: 'The number of I/O operations per second (IOPs) that the "/var" Volume of the Publish Dispatcher Instance will support (only used if PublishDispatcherVolumeVarType is set to "io1", "io2" or "gp3").'
+    Type: Number
+    Default: 3000
+
+  PublishDispatcherVolumeVarSize:
+    Description: 'The size of the "/var" Volume of the Publish Dispatcher Instance, in gibibytes (if this value is 0 the volume will not be created).'
+    Type: Number
+    Default: 0
+
+  PublishDispatcherVolumeVarType:
+    Description: 'The Volume type of the "/var" Volume of the Publish Dispatcher Instance (if you set the type to "io1" or "io2", you must also set the PublishDispatcherVolumeVarIops property).'
+    Type: String
+    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
+    Default: 'gp3'
+
+  #=======================================
+  # DNS Record configuration (optional)
+  #=======================================
+
+  DnsServiceToken:
+    Description: 'The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack).'
+    Type: String
+    Default: ''
+
+  HostedZoneName:
+    Description: 'The name of the domain for the Hosted Zone where the Record Sets should be added (if left empty, no DNS Record will be created; example: "my-project.example.com").'
+    Type: String
+    Default: ''
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+
+  # If no Image ID is specified for the Author, then the Instance should not be created
+  CreateAuthor: !Not
+    - !Equals [ !Ref AuthorImageId, '' ]
+
+  # If no Image ID is specified for the Author Dispatcher, then the Instance should not be created
+  CreateAuthorDispatcher: !Not
+    - !Equals [ !Ref AuthorDispatcherImageId, '' ]
+
+  # If no Image ID is specified for the Publish Dispatcher, then the Instance should not be created
+  CreatePublishDispatcher: !Not
+    - !Equals [ !Ref PublishDispatcherImageId, '' ]
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# Naming Conventions:
+#  - Name attribute: !Sub '${RootStackName}-<identifier>-${NameSuffix}'
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  #=======================================
+  # Author
+  #=======================================
+
+  Author:
+    Condition: CreateAuthor
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: '../../../resources/ec2/instance.yaml'
+      Tags:
+        # Which role should be applied (has to be reflected in the hiera roles -> './hieradata/role/*.yaml')
+        - Key: 'role'
+          Value: 'author'
+      Parameters:
+        # Naming details
+        #
+        RootStackName: !Ref RootStackName
+        NameSuffix: !Sub 'author-${NameSuffix}'
+
+        # Instance configuration
+        #
+        AvailabilityZone: !Ref AvailabilityZone
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
+        ImageId: !Ref AuthorImageId
+        InstanceProfile: !Ref InstanceProfile
+        InstanceType: !Ref AuthorInstanceType
+        RootKeyName: !Ref RootKeyName
+        SecurityGroupIds: !Join [ ',', !Ref AuthorSecurityGroupIds ]
+        SubnetId: !Ref SubnetId
+
+        # /opt (optional)
+        #
+        VolumeOptEncryption: !Ref FeatureVolumeEncryption
+        VolumeOptIops: !Ref AuthorVolumeOptIops
+        VolumeOptSize: !Ref AuthorVolumeOptSize
+        VolumeOptType: !Ref AuthorVolumeOptType
+
+        # /tmp (optional)
+        #
+        VolumeTmpEncryption: !Ref FeatureVolumeEncryption
+        VolumeTmpIops: !Ref AuthorVolumeTmpIops
+        VolumeTmpSize: !Ref AuthorVolumeTmpSize
+        VolumeTmpType: !Ref AuthorVolumeTmpType
+
+        # /var (optional)
+        #
+        VolumeVarEncryption: !Ref FeatureVolumeEncryption
+        VolumeVarIops: !Ref AuthorVolumeVarIops
+        VolumeVarSize: !Ref AuthorVolumeVarSize
+        VolumeVarType: !Ref AuthorVolumeVarType
+
+        # DNS Record configuration (optional)
+        #
+        DnsServiceToken: !Ref DnsServiceToken
+        HostedZoneName: !Ref HostedZoneName
+
+  AuthorDispatcher:
+    Condition: CreateAuthorDispatcher
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: '../../../resources/ec2/instance.yaml'
+      Tags:
+        # Which role should be applied (has to be reflected in the hiera roles -> './hieradata/role/*.yaml')
+        - Key: 'role'
+          Value: 'authordispatcher'
+      Parameters:
+        # Naming details
+        #
+        RootStackName: !Ref RootStackName
+        NameSuffix: !Sub 'author-${NameSuffix}-dispatcher'
+
+        # Instance configuration
+        #
+        AvailabilityZone: !Ref AvailabilityZone
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
+        ImageId: !Ref AuthorDispatcherImageId
+        InstanceProfile: !Ref InstanceProfile
+        InstanceType: !Ref AuthorDispatcherInstanceType
+        RootKeyName: !Ref RootKeyName
+        SecurityGroupIds: !Join [ ',', !Ref AuthorDispatcherSecurityGroupIds ]
+        SubnetId: !Ref SubnetId
+
+        # /var (optional)
+        #
+        VolumeVarEncryption: !Ref FeatureVolumeEncryption
+        VolumeVarIops: !Ref AuthorDispatcherVolumeVarIops
+        VolumeVarSize: !Ref AuthorDispatcherVolumeVarSize
+        VolumeVarType: !Ref AuthorDispatcherVolumeVarType
+
+        # DNS Record configuration (optional)
+        #
+        DnsServiceToken: !Ref DnsServiceToken
+        HostedZoneName: !Ref HostedZoneName
+
+  #=======================================
+  # Publish
+  #=======================================
+
+  Publish:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: '../../../resources/ec2/instance.yaml'
+      Tags:
+        # Which role should be applied (has to be reflected in the hiera roles -> './hieradata/role/*.yaml')
+        - Key: 'role'
+          Value: 'publish'
+      Parameters:
+        # Naming details
+        #
+        RootStackName: !Ref RootStackName
+        NameSuffix: !Sub 'publish-${NameSuffix}'
+
+        # Instance configuration
+        #
+        AvailabilityZone: !Ref AvailabilityZone
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
+        ImageId: !Ref PublishImageId
+        InstanceProfile: !Ref InstanceProfile
+        InstanceType: !Ref PublishInstanceType
+        RootKeyName: !Ref RootKeyName
+        SecurityGroupIds: !Join [ ',', !Ref PublishSecurityGroupIds ]
+        SubnetId: !Ref SubnetId
+
+        # /opt (optional)
+        #
+        VolumeOptEncryption: !Ref FeatureVolumeEncryption
+        VolumeOptIops: !Ref PublishVolumeOptIops
+        VolumeOptSize: !Ref PublishVolumeOptSize
+        VolumeOptType: !Ref PublishVolumeOptType
+
+        # /tmp (optional)
+        #
+        VolumeTmpEncryption: !Ref FeatureVolumeEncryption
+        VolumeTmpIops: !Ref PublishVolumeTmpIops
+        VolumeTmpSize: !Ref PublishVolumeTmpSize
+        VolumeTmpType: !Ref PublishVolumeTmpType
+
+        # /var (optional)
+        #
+        VolumeVarEncryption: !Ref FeatureVolumeEncryption
+        VolumeVarIops: !Ref PublishVolumeVarIops
+        VolumeVarSize: !Ref PublishVolumeVarSize
+        VolumeVarType: !Ref PublishVolumeVarType
+
+        # DNS Record configuration (optional)
+        #
+        DnsServiceToken: !Ref DnsServiceToken
+        HostedZoneName: !Ref HostedZoneName
+
+  PublishDispatcher:
+    Condition: CreatePublishDispatcher
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: '../../../resources/ec2/instance.yaml'
+      Tags:
+        # Which role should be applied (has to be reflected in the hiera roles -> './hieradata/role/*.yaml')
+        - Key: 'role'
+          Value: 'publishdispatcher'
+      Parameters:
+        # Naming details
+        #
+        RootStackName: !Ref RootStackName
+        NameSuffix: !Sub 'publish-${NameSuffix}-dispatcher'
+
+        # Instance configuration
+        #
+        AvailabilityZone: !Ref AvailabilityZone
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
+        ImageId: !Ref PublishDispatcherImageId
+        InstanceProfile: !Ref InstanceProfile
+        InstanceType: !Ref PublishDispatcherInstanceType
+        RootKeyName: !Ref RootKeyName
+        SecurityGroupIds: !Join [ ',', !Ref PublishDispatcherSecurityGroupIds ]
+        SubnetId: !Ref SubnetId
+
+        # /var (optional)
+        #
+        VolumeVarEncryption: !Ref FeatureVolumeEncryption
+        VolumeVarIops: !Ref PublishDispatcherVolumeVarIops
+        VolumeVarSize: !Ref PublishDispatcherVolumeVarSize
+        VolumeVarType: !Ref PublishDispatcherVolumeVarType
+
+        # DNS Record configuration (optional)
+        #
+        DnsServiceToken: !Ref DnsServiceToken
+        HostedZoneName: !Ref HostedZoneName
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# Naming Conventions:
+#  - Logical ID: <same-ID-that-was-used-for-the-resource>
+#  - Export Name: <same-name-that-was-used-for-the-resource>
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+
+  # Export the ID of the Instance that should be used for the Author load balancing (either the Author Dispatcher Instance or the Author Instance, if no Author Dispatcher Instance has been created)
+  LoadBalancedAuthorInstance:
+    Condition: CreateAuthor
+    Description: 'The ID of the Instance that will be used for the Author load balancing.'
+    Value: !If
+      - CreateAuthorDispatcher
+      - !GetAtt AuthorDispatcher.Outputs.InstanceId
+      - !GetAtt Author.Outputs.InstanceId
+
+  # Export the ID of the Instance that should be used for the Publish load balancing (either the Author Dispatcher Instance or the Publish Instance, if no Publish Dispatcher Instance has been created)
+  LoadBalancedPublishInstance:
+    Description: 'The ID of the Instance that will be used for the Publish load balancing.'
+    Value: !If
+      - CreatePublishDispatcher
+      - !GetAtt PublishDispatcher.Outputs.InstanceId
+      - !GetAtt Publish.Outputs.InstanceId

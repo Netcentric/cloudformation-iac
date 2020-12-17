@@ -1,0 +1,384 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Setup utilizing SNS and Lambda to enable the use of Hosted Zones in this account by CFTs run in other accounts"
+
+################################################################################
+#
+# Decision Trees:
+#
+#   Encryption
+#     EnableEncryption == true && KmsMasterKeyId == ''
+#       true  -> Create new KmsMasterKeyId
+#       false -> Use provided KmsMasterKeyId
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Naming details"
+        Parameters:
+          - NameSuffix
+      - Label:
+          default: "General configuration"
+        Parameters:
+          - AuthorizedAccounts
+          - HostedZone
+      - Label:
+          default: "Feature: Encryption"
+        Parameters:
+          - FeatureEncryption
+          - KmsMasterKeyId
+          - KmsMasterKeyPrincipals
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #----------------------------
+  # Naming details
+  #----------------------------
+
+  NameSuffix:
+    Description: "A string used to tell the different Instances apart (examples: 'sites' or 'prod')."
+    Type: String
+
+  #----------------------------
+  # General configuration
+  #----------------------------
+
+  AuthorizedAccounts:
+    Description: "A list of accounts that are allowed to create Route 53 Records (e.g. '1234567890, 987654321098')."
+    Type: CommaDelimitedList
+
+  HostedZone:
+    Description: "The ID of the Route 53 Hosted Zone in which Records will be created (e.g. 'ZXL85AOMNFJIZ')."
+    Type: String
+
+  #----------------------------
+  # Feature: Encryption
+  #----------------------------
+
+  FeatureEncryption:
+    Description: "Whether encryption should be enabled for the communication between the accounts."
+    Type: String
+    AllowedValues: [ "disabled", "enabled" ]
+    Default: "disabled"
+
+  KmsMasterKeyId:
+    Description: "The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a custom CMK (e.g. '1234abcd-12ab-34cd-56ef-1234567890ab')."
+    Type: String
+    Default: ""
+
+  KmsMasterKeyPrincipals:
+    Description: "The AWS principals that are allowed to access and use the CMK (list of entries in the format 'arn:aws:iam::123456789012:user/MyIamUser')."
+    Type: CommaDelimitedList
+    Default: ""
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+  #----------------------------
+  # Features
+  #----------------------------
+
+  # If encryption is set to 'enabled'
+  EnableEncryption: !Equals [ !Ref FeatureEncryption, "enabled" ]
+
+  #----------------------------
+  # Encryption
+  #----------------------------
+
+  # If no Master Key ID was given, we will crete one
+  CreateKmsMasterKey: !And
+    - !Condition EnableEncryption
+    - !Equals [ !Ref KmsMasterKeyId, "" ]
+
+  # If AWS principals have been specified or not
+  HasKmsMasterKeyPrincipals: !Not
+    - !Equals
+      - !Join [ '', !Ref KmsMasterKeyPrincipals ]
+      - ""
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  #=======================================
+  # Route 53 managing Lambda
+  #=======================================
+
+  # The Lambda that is triggered by SNS and manages the Route 53 records
+  ManageR53RecordLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: !Sub "Lambda that is triggered by SNS and manages the Route 53 records for ${NameSuffix} (${HostedZone})."
+      Handler: index.lambda_handler
+      Role: !GetAtt ManageR53RecordRole.Arn
+      Runtime: python2.7
+      Code:
+        ZipFile: !Sub |
+          import sys, boto3, json, urllib, urllib2, json
+          client = boto3.client('route53')
+
+          def lambda_handler(event, context):
+            # SNS events contain a wrapper around the Lambda event. Unpack the
+            # lambda event from SNS. Delete this part if calling lambda directly.
+            print("SNS Event: " + json.dumps(event))
+            event = json.loads(event['Records'][0]['Sns']['Message'])
+            print("Lambda Event: " + json.dumps(event))
+
+            try:
+              hosted_zone = '${HostedZone}'
+              # The type of the event that was triggered by CloudFormation (valid values are: "Create", "Update" and "Delete")
+              request_type = event['RequestType']
+              # The name of the record that we want to create, update, or delete, including the Hosted Zone name (example: "foobar.example.com")
+              record_name = event['ResourceProperties']['Name']
+              # The current or new DNS record value, not to exceed 4,000 characters
+              record_target = event['ResourceProperties']['Target']
+              # The DNS record type (currently supported values for are: "A" and "CNAME")
+              record_type = event['ResourceProperties']['Type']
+              # The resource record cache time to live (TTL), in seconds
+              record_ttl = "300" if "TTL" not in event['ResourceProperties'] else event['ResourceProperties']['TTL']
+
+
+              if request_type == 'Create':
+                change_resource_record_sets('UPSERT', hosted_zone, record_type, record_name, record_target, record_ttl)
+              elif request_type == 'Update':
+                old_record_name = event['OldResourceProperties']['Name']
+                old_record_target = event['OldResourceProperties']['Target']
+
+                change_resource_record_sets('DELETE', hosted_zone, record_type, old_record_name, old_record_target, record_ttl)
+                change_resource_record_sets('UPSERT', hosted_zone, record_type, record_name, record_target, record_ttl)
+              elif request_type == 'Delete':
+                change_resource_record_sets('DELETE', hosted_zone, record_type, record_name, record_target, record_ttl)
+              else:
+                print "Unexpected Request Type"
+                raise Exception("Unexpected Request Type")
+
+              print "Completed successfully"
+              response_status = 'SUCCESS'
+              response_data = {}
+              sendResponse(event, context, response_status, response_data)
+
+            except:
+              print("Error:", sys.exc_info()[0])
+              response_status = 'FAILED'
+              response_data = {}
+              sendResponse(event, context, response_status, response_data)
+
+          def change_resource_record_sets(action, hosted_zone, type, name, target, ttl):
+            print action + ": '" + type + "' record '" + name + "' pointing to '" + target + "' in '" + hosted_zone + "' with TTL=" + ttl
+            response = client.change_resource_record_sets(
+              HostedZoneId=hosted_zone,
+              ChangeBatch= {
+                'Comment': 'Record %s -> %s' % (name, target),
+                'Changes': [{
+                  'Action': action,
+                  'ResourceRecordSet': {
+                    'Name': name,
+                    'Type': type,
+                    'TTL': int(ttl),
+                    'ResourceRecords': [{'Value': target}]
+                  }
+                }]
+              }
+            )
+
+          def sendResponse(event, context, response_status, response_data):
+            data = json.dumps({
+              'Status': response_status,
+              'Reason': 'See the details in CloudWatch Log Stream: ' + context.log_stream_name,
+              'PhysicalResourceId': context.log_stream_name,
+              'StackId': event['StackId'],
+              'RequestId': event['RequestId'],
+              'LogicalResourceId': event['LogicalResourceId'],
+              'Data': response_data
+            })
+
+            print event['ResponseURL']
+            print data
+
+            opener = urllib2.build_opener(urllib2.HTTPHandler)
+            request = urllib2.Request(url=event['ResponseURL'], data=data)
+
+            request.add_header('Content-Type', '')
+            request.get_method = lambda: 'PUT'
+
+            url = opener.open(request)
+
+  # Role permitting the Lambda to manipulate Route 53 records
+  ManageR53RecordRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: Route53ChangeResourceRecordSets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                Resource: arn:aws:route53:::hostedzone/*
+
+  #=======================================
+  # Set up SNS
+  #=======================================
+
+  # Te SNS Topic that will be used to trigger the Lambda
+  RequestR53Record:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - EnableEncryption
+        - !If
+          - CreateKmsMasterKey
+          - !Ref RequestR53RecordMasterKey
+          - !Ref KmsMasterKeyId
+        - !Ref AWS::NoValue
+      Subscription:
+        - Endpoint: !GetAtt ManageR53RecordLambda.Arn
+          Protocol: lambda
+
+  RequestR53RecordMasterKey:
+    Condition: CreateKmsMasterKey
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "Master key used to encrypt the remote DNS management SNS Topic for '${NameSuffix}' (${HostedZone})."
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: auto-sns-1
+        Statement:
+          # Taken from the AWS documentation on the default key policy
+          # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default
+          - Sid: "Enable IAM User Permissions"
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - kms:*
+            Resource: "*"
+          # Taken from the default key that AWS sets up when manually creating an encrypted topic
+          - Sid: Allow access through SNS for all principals in the account that are authorized to use SNS
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - kms:CreateGrant
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:GenerateDataKey*
+              - kms:ListGrants
+            Resource: "*"
+            Condition:
+              StringEquals:
+                kms:CallerAccount: !Ref AWS::AccountId
+                kms:ViaService: !Sub "sns.${AWS::Region}.amazonaws.com"
+          # Attempt to fix the "KMSAccessDenied" error when managing DNS entries from within another account
+          # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
+          - !If
+            - HasKmsMasterKeyPrincipals
+            - Sid: Allow use of the key for all principals
+              Effect: Allow
+              Principal:
+                AWS: !Ref KmsMasterKeyPrincipals
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:DescribeKey
+                - kms:GenerateDataKey*
+                - kms:ReEncrypt
+              Resource: "*"
+            - !Ref AWS::NoValue
+
+  RequestR53RecordMasterKeyAlias:
+    Condition: CreateKmsMasterKey
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/RemoteDnsManagement/${NameSuffix}/${HostedZone}"
+      TargetKeyId: !Ref RequestR53RecordMasterKey
+
+  # Allow the provided accounts to publish to the Topic (-> trigger the Lambda)
+  RequestR53RecordPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref RequestR53Record
+      PolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref AuthorizedAccounts
+            Action:
+              - sns:Publish
+            Resource: !Ref RequestR53Record
+
+  # Allow SNS to trigger the Lambda function
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref RequestR53Record
+      FunctionName: !GetAtt ManageR53RecordLambda.Arn
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+
+  ServiceToken:
+    Description: "The ARM of SNS Topic used to request a Route 53 Record. Share this with the sub-accounts authorized to create resource records."
+    Value: !Ref RequestR53Record

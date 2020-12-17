@@ -1,0 +1,271 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Set of 'AWS::EC2::Route' of 'AWS::EC2::VPNConnectionRoute' routes."
+
+################################################################################
+#
+# Decision Trees:
+#
+#   TransitGatewayId != ""
+#     true  -> AWS::EC2::Route routes will be created
+#     false -> Disabled [default]
+#
+#   VpnConnectionId != ""
+#     true  -> AWS::EC2::VPNConnectionRoute routes will be created
+#     false -> Disabled [default]
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Route configuration'
+        Parameters:
+          - DestinationCidrBlocks
+          - DestinationCidrBlocksCount
+          - RouteTableId
+          - TransitGatewayId
+          - VpnConnectionId
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+
+  DestinationCidrBlocks:
+    Description: "A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5)."
+    Type: CommaDelimitedList
+
+  DestinationCidrBlocksCount:
+    Description: "The number of CIDR blocks that specified in Routes (max: 5)."
+    Type: Number
+    AllowedValues: [ 1, 2, 3, 4, 5 ]
+
+  RouteTableId:
+    Description: "The ID of the route table. The routing table must be associated with the same VPC that the virtual private gateway is attached to."
+    Type: String
+
+  TransitGatewayId:
+    Description: "The ID of a transit gateway."
+    Type: String
+    Default: ""
+
+  VpnConnectionId:
+    Description: "The ID of the VPN connection."
+    Type: String
+    Default: ""
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+  #=======================================
+  # Shared
+  #=======================================
+
+  # Create Route 2 if two or more routes have been provided
+  CreateRoute2: !Or
+      - !Equals [ !Ref DestinationCidrBlocksCount, 2 ]
+      - !Condition CreateRoute3
+
+  # Create Route 3 if three or more routes have been provided
+  CreateRoute3: !Or
+      - !Equals [ !Ref DestinationCidrBlocksCount, 3 ]
+      - !Condition CreateRoute4
+
+  # Create Route 4 if four or more routes have been provided
+  CreateRoute4: !Or
+      - !Equals [ !Ref DestinationCidrBlocksCount, 4 ]
+      - !Condition CreateRoute5
+
+  # Create Route 5 if five routes have been provided
+  CreateRoute5: !Equals [ !Ref DestinationCidrBlocksCount, 5 ]
+
+  #----------------------------
+  # AWS::EC2::Route
+  #----------------------------
+
+  UseTransitGateway: !Not
+      - !Equals [ !Ref TransitGatewayId, "" ]
+
+  CreateRouteTableRoutes: !Condition UseTransitGateway
+
+  # Create Route Table Route 2 if two or more routes have been provided
+  CreateRouteTableRoute2: !And
+    - !Condition CreateRouteTableRoutes
+    - !Condition CreateRoute2
+
+  # Create Route Table Route 3 if three or more routes have been provided
+  CreateRouteTableRoute3: !And
+    - !Condition CreateRouteTableRoutes
+    - !Condition CreateRoute3
+
+  # Create Route Table Route 4 if four or more routes have been provided
+  CreateRouteTableRoute4: !And
+    - !Condition CreateRouteTableRoutes
+    - !Condition CreateRoute4
+
+  # Create Route Table Route 5 if five routes have been provided
+  CreateRouteTableRoute5: !And
+    - !Condition CreateRouteTableRoutes
+    - !Condition CreateRoute5
+
+  #----------------------------
+  # AWS::EC2::VPNConnectionRoute
+  #----------------------------
+
+  CreateVgwRoutes: !Not
+      - !Equals [ !Ref VpnConnectionId, "" ]
+
+  # Create VPNConnectionRoute Route 2 if two or more routes have been provided
+  CreateVgwRoute2: !And
+    - !Condition CreateVgwRoutes
+    - !Condition CreateRoute2
+
+  # Create VPNConnectionRoute Route 3 if three or more routes have been provided
+  CreateVgwRoute3: !And
+    - !Condition CreateVgwRoutes
+    - !Condition CreateRoute3
+
+  # Create VPNConnectionRoute Route 4 if four or more routes have been provided
+  CreateVgwRoute4: !And
+    - !Condition CreateVgwRoutes
+    - !Condition CreateRoute4
+
+  # Create VPNConnectionRoute Route 5 if five routes have been provided
+  CreateVgwRoute5: !And
+    - !Condition CreateVgwRoutes
+    - !Condition CreateRoute5
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  #----------------------------
+  # AWS::EC2::Route
+  #----------------------------
+
+  Route1:
+    Condition: CreateRouteTableRoutes
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Select [ "0", !Ref DestinationCidrBlocks ]
+      RouteTableId: !Ref RouteTableId
+      TransitGatewayId: !If
+        - UseTransitGateway
+        - !Ref TransitGatewayId
+        - !Ref AWS::NoValue
+
+  Route2:
+    Condition: CreateRouteTableRoute2
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Select [ "1", !Ref DestinationCidrBlocks ]
+      RouteTableId: !Ref RouteTableId
+      TransitGatewayId: !If
+        - UseTransitGateway
+        - !Ref TransitGatewayId
+        - !Ref AWS::NoValue
+
+  Route3:
+    Condition: CreateRouteTableRoute3
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Select [ "2", !Ref DestinationCidrBlocks ]
+      RouteTableId: !Ref RouteTableId
+      TransitGatewayId: !If
+        - UseTransitGateway
+        - !Ref TransitGatewayId
+        - !Ref AWS::NoValue
+
+  Route4:
+    Condition: CreateRouteTableRoute4
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Select [ "3", !Ref DestinationCidrBlocks ]
+      RouteTableId: !Ref RouteTableId
+      TransitGatewayId: !If
+        - UseTransitGateway
+        - !Ref TransitGatewayId
+        - !Ref AWS::NoValue
+
+  Route5:
+    Condition: CreateRouteTableRoute5
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Select [ "4", !Ref DestinationCidrBlocks ]
+      RouteTableId: !Ref RouteTableId
+      TransitGatewayId: !If
+        - UseTransitGateway
+        - !Ref TransitGatewayId
+        - !Ref AWS::NoValue
+
+  #----------------------------
+  # AWS::EC2::VPNConnectionRoute
+  #----------------------------
+
+  VgwRoute1:
+    Condition: CreateVgwRoutes
+    Type: AWS::EC2::VPNConnectionRoute
+    Properties:
+      DestinationCidrBlock: !Select [ "0", !Ref DestinationCidrBlocks ]
+      VpnConnectionId: !Ref VpnConnectionId
+
+  VgwRoute2:
+    Condition: CreateVgwRoute2
+    Type: AWS::EC2::VPNConnectionRoute
+    Properties:
+      DestinationCidrBlock: !Select [ "1", !Ref DestinationCidrBlocks ]
+      VpnConnectionId: !Ref VpnConnectionId
+
+  VgwRoute3:
+    Condition: CreateVgwRoute3
+    Type: AWS::EC2::VPNConnectionRoute
+    Properties:
+      DestinationCidrBlock: !Select [ "2", !Ref DestinationCidrBlocks ]
+      VpnConnectionId: !Ref VpnConnectionId
+
+  VgwRoute4:
+    Condition: CreateVgwRoute4
+    Type: AWS::EC2::VPNConnectionRoute
+    Properties:
+      DestinationCidrBlock: !Select [ "3", !Ref DestinationCidrBlocks ]
+      VpnConnectionId: !Ref VpnConnectionId
+
+  VgwRoute5:
+    Condition: CreateVgwRoute5
+    Type: AWS::EC2::VPNConnectionRoute
+    Properties:
+      DestinationCidrBlock: !Select [ "4", !Ref DestinationCidrBlocks ]
+      VpnConnectionId: !Ref VpnConnectionId

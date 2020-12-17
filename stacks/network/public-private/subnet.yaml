@@ -1,0 +1,234 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'A public (accessible from the internet) and a private (accessible only via VPN) Subnet'
+
+################################################################################
+#
+# Decision Trees: none
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Naming details'
+        Parameters:
+          - RootStackName
+          - NameSuffix
+      - Label:
+          default: 'Subnet configuration'
+        Parameters:
+          - AvailabilityZone
+          - IgwRouteTable
+          - InternetAccess
+          - PrivateSubnetCidr
+          - PublicSubnetCidr
+          - Vpc
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  RootStackName:
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "infra" or "nonprod").'
+    Type: String
+
+  NameSuffix:
+    Description: 'String used to tell the different subnet apart (examples: "az1" or "az2").'
+    Type: String
+
+  #=======================================
+  # Subnet configuration
+  #=======================================
+
+  AvailabilityZone:
+    Description: 'AvailabilityZone the subnets will be created in.'
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  IgwRouteTable:
+    Description: 'The ID of a RouteTable that contains the Routes to the Internet Gateway.'
+    Type: String
+
+  InternetAccess:
+    Description: 'Indicates whether internet access should be possible for Instances in the private subnets.'
+    Type: String
+    AllowedValues: [ 'disable', 'enable' ]
+    Default: 'enable'
+
+  PrivateSubnetCidr:
+    Description: 'Private Subnet IP class (must be a valid subclass of VPC, e.g. 10.31.1.0/24).'
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+
+  PublicSubnetCidr:
+    Description: 'Public Subnet IP class (must be a valid subclass of VPC, e.g. 10.31.0.0/24).'
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+
+  Vpc:
+    Description: 'ID of the VPC that will host the subnets.'
+    Type: AWS::EC2::VPC::Id
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+  # If access to the internet should be disabled, we should do this
+  EnableInternetAccess: !Equals [ !Ref InternetAccess, 'enable' ]
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# Naming Conventions:
+#  - Name attribute: !Sub '${RootStackName}-<identifier>-${NameSuffix}'
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  #----------------------------
+  # Private Subnet
+  #----------------------------
+
+  # Routing of the private subnet
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${RootStackName}-rt-private-${NameSuffix}'
+
+  # This private subnet should contain most resources. Especially security critical ones.
+  # Components in this subnet can only 'dial out' via the NAT Gateway but are not by default not reachable form the WWW
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      CidrBlock: !Ref PrivateSubnetCidr
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${RootStackName}-sn-private-${NameSuffix}'
+
+  # Connecting private route table with the private subnet
+  PrivateSubnetPrivateRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+  #----------------------------
+  # Public Subnet
+  #----------------------------
+
+  # Each NAT Gateway needs a Elastic IP to be reachable from the WWW.
+  PublicEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: "vpc"
+
+  # The Gateway acts as an adapter between private Resources (e.g. AEM-VMs) and the WWW (e.g. repositories, external data, etc.)
+  PublicNatGateway:
+    Condition: EnableInternetAccess
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt PublicEip.AllocationId
+      SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub '${RootStackName}-natgw-public-${NameSuffix}'
+
+  # Route to let instances in the PrivateSubnet access the internet via PublicNatGateway.
+  PublicNatGatewayRoute:
+    Condition: EnableInternetAccess
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref PrivateRouteTable
+      NatGatewayId: !Ref PublicNatGateway
+
+  # This Subnet will be accessible from the internet. All resources that need to be public must be located here.
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${RootStackName}-sn-public-${NameSuffix}'
+
+  # Connecting internet gateway route table with the public subnet
+  PublicSubnetPublicRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref IgwRouteTable
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# Naming Conventions:
+#  - Logical ID: <same-ID-that-was-used-for-the-resource>
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+
+  PrivateRouteTable:
+    Description: 'The ID of the Route Table associated with the private subnet.'
+    Value: !Ref PrivateRouteTable
+
+  PrivateSubnet:
+    Description: 'The ID of the private subnet.'
+    Value: !Ref PrivateSubnet
+
+  PublicSubnet:
+    Description: 'The ID of the public subnet.'
+    Value: !Ref PublicSubnet
+
+  AvailabilityZone:
+    Description: 'The Name of the Availability Zone the subnets have been created in.'
+    Value: !Ref AvailabilityZone

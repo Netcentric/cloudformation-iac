@@ -1,0 +1,313 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Example project for a simple AEM-ready, using the Netcentric AWS CloudFormation Templates"
+
+
+################################################################################
+#
+# Mappings (optional)
+# Matches a key to a corresponding set of named values
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/mappings-section-structure.html
+#
+################################################################################
+
+Mappings:
+  #=======================================
+  # AMI Images for different regions
+  #=======================================
+
+  AWSRegionToAMI:
+    eu-west-1:
+      # CentOS Linux 8 (8.2.2004; x86_64)
+      CentOS: "ami-0bfa4fefe067b7946"
+    eu-central-1:
+      # CentOS Linux 8 (8.2.2004; x86_64)
+      CentOS: "ami-032025b3afcbb6b34"
+    us-east-1:
+      # CentOS Linux 8 (8.2.2004; x86_64)
+      CentOS: "ami-01ca03df4a6012157"
+
+  #=======================================
+  # Custom arguments used for this setup
+  #=======================================
+
+  Properties:
+    General:
+      # A domain, managed in a Hosted Zone (all hosts will get DNS entries like "${RootStackName}-${role}-${id}.${DomainName}", for example "dev1-author-1.example.com").
+      DomainName: "example.com"
+      # The name of the Amazon EC2 key pair that will be used to access the Instances via SSH.
+      RootKeyName: "example-key"
+
+    AutoSnapshots:
+      # A string identifying this Snapshot schedule. It will later be used to tag Volumes that should be backed up following this schedule (examples: 'Hourly', 'Daily', 'Weekly').
+      ScheduleName: "Daily"
+      # A cron expression defining when Snapshots of EC2 Volumes associated with this schedule will be created (example: '0 4-20 ? * MON-FRI *', '0 0 ? * MON-FRI *', '0 0 ? * SUN *').
+      ScheduleCron: "0 0 ? * MON-FRI *"
+
+    VpnCorp:
+      # Rules for in- and outbound traffic from and to the company network
+      FirewallRules:
+        - Description: "Company Network 1"
+          CidrIp: "10.0.0.0/16"
+          IpProtocol: "-1"
+        - Description: "Company Network 2"
+          CidrIp: "192.168.0.0/16"
+          IpProtocol: "-1"
+      # The internet-routable IP address for the customer gateway's outside interface. The address must be static.
+      PublicIp: "42.31.47.13"
+      # A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5).
+      StaticRoutes:
+        # Company Network 1
+        - "10.0.0.0/16"
+        # Company Network 2
+        - "192.168.0.0/16"
+      # The number of CIDR blocks that specified in StaticRoutes (max: 5).
+      StaticRoutesCount: 2
+      # Indicates which Amazon VPN solution should be used. Options are "Transit Gateway" (tgw) or "Virtual Private Gateway" (vgw).
+      VpnSolution: "vgw"
+
+    VpcNonprod:
+      # Name that will be used for the VPC
+      Name: "nonprod"
+      # Private ip class for VPC (10.31.0.0 - 10.31.0.63)
+      Cidr: "10.31.0.0/26"
+      # Public Subnet-A IP class (must be a valid subclass of VPC; 10.31.0.0 - 10.31.0.15)
+      Az1PublicSubnetCidr: "10.31.0.0/28"
+      # Private Subnet-A IP class (must be a valid subclass of VPC; 10.31.0.32 - 10.31.0.47)
+      Az1PrivateSubnetCidr: "10.31.0.32/28"
+      # Public Subnet-B IP class (must be a valid subclass of VPC; 10.31.0.16 - 10.31.0.31)
+      Az2PublicSubnetCidr: "10.31.0.16/28"
+      # Private Subnet-B IP class (must be a valid subclass of VPC; 10.31.0.48 - 10.31.0.63)
+      Az2PrivateSubnetCidr: "10.31.0.48/28"
+
+    EnvDev1:
+      # The instance type for the Author Instance (examples: "t3a.micro" or "m5.xlarge").
+      AuthorInstanceType: "m5a.xlarge"
+      # The size of the "/opt" Volume of the Author Instance, in gibibytes (if this value is 0 the volume will not be created).
+      AuthorVolumeOptSize: 500
+      # Whether EBS Volumes should be backed up automatically not. This feature can be enabled by specifying a ScheduleName that was used with the "automatic-snapshots" template (examples: "Daily").
+      FeatureAutoSnapshot: "Daily"
+      # A list consisting of two elements in the UNIX cron format, the first representing the start and the second the stop times. If set to "disabled", the instances will run 24/7 (example: "* 4 ? * MON-FRI *", "* 20 ? * MON-FRI *").
+      FeatureUptimeWindows:
+        - "* 4 ? * MON-FRI *"
+        - "* 20 ? * MON-FRI *"
+      # Whether all Volumes of all Instance should be encrypted or not.
+      FeatureVolumeEncryption: "true"
+      # The port on which the Load Balancer listens for HTTPS requests (if zero, HTTPS will be disabled). When set, LbSslCertificateArn needs to be set too.
+      LbHttpsPort: 443
+      # The instance type for the Publish Instance (examples: "t3a.micro" or "m5.xlarge").
+      PublishInstanceType: "m5a.large"
+      # The size of the "/opt" Volume of the Publish Instance, in gibibytes (if this value is 0 the volume will not be created).
+      PublishVolumeOptSize: 500
+      # The instance type for the Publish Dispatcher Instance (examples: "t3a.micro" or "m5.xlarge").
+      PublishDispatcherInstanceType: "t3a.medium"
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  #=======================================
+  # Shared
+  #=======================================
+
+  #----------------------------
+  # Basics
+  #----------------------------
+
+  # Has to be created only once per Availability Zone and Customer and only if you want to use HTTPS
+  SslCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub
+        - "*.${Domain}"
+        - { Domain: !FindInMap [ Properties, General, DomainName ] }
+      Tags:
+        - Key: Name
+          Value: !Sub "cert-master"
+      ValidationMethod: "DNS"
+
+  #=======================================
+  # Services
+  #=======================================
+
+  # Make available the optional feature to let AWS automatically create snapshots at specified times
+  AutoSnapshots:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "stacks/features/automatic-snapshots.yaml"
+      Parameters:
+        # Naming details
+        #
+        ScheduleName: !FindInMap [ Properties, AutoSnapshots, ScheduleName ]
+
+        # Snapshot configuration
+        #
+        ScheduleCron: !FindInMap [ Properties, AutoSnapshots, ScheduleCron ]
+
+  # Make available the optional feature to let AWS automatically start/stop instance at specified times
+  AutoUptime:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "stacks/features/automatic-uptime.yaml"
+
+  #=======================================
+  # Network
+  #=======================================
+
+  #----------------------------
+  # VPN
+  #----------------------------
+
+  # VPN, or example with the company network
+  VpnCorp:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "resources/ec2/vpn.yaml"
+      Parameters:
+        # Naming details
+        #
+        RootStackName: !Sub "vpn-corp"
+
+        # VPN configuration
+        #
+        CustomerGatewayPublicIp: !FindInMap [ Properties, VpnCorp, PublicIp ]
+        VpnSolution: !FindInMap [ Properties, VpnCorp, VpnSolution ]
+
+  # Security Group that controls in- and outbound traffic from and to the company network. Should be assigned to all Instances.
+  VpnCorpSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "Rules for in- and outbound traffic from and to the company network"
+      VpcId: !Ref VpcNonprod
+      SecurityGroupIngress: !FindInMap [ Properties, VpnCorp, FirewallRules ]
+      SecurityGroupEgress: !FindInMap [ Properties, VpnCorp, FirewallRules ]
+      Tags:
+        - Key: Name
+          Value: !Sub "vpn-corp-sg"
+
+  #----------------------------
+  # Zones
+  #----------------------------
+
+  # Non-Productive hosts (e.g DEV, TEST, UAT)
+  VpcNonprod:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "stacks/network/public-private/vpc.yaml"
+      Parameters:
+        # Naming details
+        #
+        RootStackName: "nonprod"
+
+        # Network configuration
+        #
+        VpcCidr: !FindInMap [ Properties, VpcNonprod, VpcCidr ]
+        Az1PublicSubnetCidr: !FindInMap [ Properties, VpcNonprod, Az1PublicSubnetCidr ]
+        Az1PrivateSubnetCidr: !FindInMap [ Properties, VpcNonprod, Az1PrivateSubnetCidr ]
+
+        # Network configuration - Availability Zone 2 (optional)
+        #
+        Az2PublicSubnetCidr: !FindInMap [ Properties, VpcNonprod, Az2PublicSubnetCidr ]
+        Az2PrivateSubnetCidr: !FindInMap [ Properties, VpcNonprod, Az2PrivateSubnetCidr ]
+
+        # VPN Virtual Private Gateway (optional)
+        #
+        VpnCustomerGatewayId: !GetAtt VpnCorp.Outputs.CustomerGatewayId
+        VpnStaticRoutes: !Join
+          - ","
+          - !FindInMap [ Properties, VpnCorp, StaticRoutes ]
+        VpnStaticRoutesCount: !FindInMap [ Properties, VpnCorp, StaticRoutesCount ]
+
+  #=======================================
+  # Environments
+  #=======================================
+
+  #----------------------------
+  # DEV1 (nonprod)
+  #----------------------------
+
+  EnvDev1:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "stacks/appenv/aem/env.yaml"
+      Parameters:
+        # Naming details
+        #
+        RootStackName: "dev1"
+
+        # Environment configuration
+        #
+        FeatureAutoSnapshot: !FindInMap [Properties, EnvDev1, FeatureAutoSnapshot]
+        FeatureUptimeWindows: !Join
+          - ","
+          - !FindInMap [ Properties, EnvDev1, FeatureUptimeWindows ]
+        FeatureVolumeEncryption: !FindInMap [ Properties, EnvDev1, FeatureVolumeEncryption ]
+        RootKeyName: !FindInMap [ Properties, Shared, RootKeyName ]
+        VpcId: !GetAtt VpcNonprod.Outputs.Vpc
+
+        # Load Balancer
+        #
+        LbHttpsPort: !FindInMap [ Properties, EnvDev1, LbHttpsPort ]
+        LbSubnetIds: !Join
+          - ","
+          - - !GetAtt VpcNonprod.Outputs.Az1PublicSubnet
+            - !GetAtt VpcNonprod.Outputs.Az2PublicSubnet
+
+        # Load Balancer - Author (optional)
+        #
+        LbAuthorSslCertificateArn: !Ref SslCertificate
+
+        # Load Balancer - Publish (optional)
+        #
+        LbPublishSslCertificateArn: !Ref SslCertificate
+
+        # Host Groups
+        #
+        HostGroupsCount: 2
+        HostGroupsAvailabilityZones: !Join
+          - ","
+          - - !GetAtt VpcNonprod.Outputs.Az1
+          - - !GetAtt VpcNonprod.Outputs.Az2
+        HostGroupsSubnetIds: !Join
+          - ","
+          - - !GetAtt VpcNonprod.Outputs.Az1PrivateSubnet
+            - !GetAtt VpcNonprod.Outputs.Az2PrivateSubnet
+
+        # Author
+        #
+        AuthorImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", CentOS ]
+        AuthorInstanceType: !FindInMap [ Properties, EnvDev1, AuthorInstanceType ]
+        AuthorSecurityGroupIds: !Join
+          - ","
+          - - !Ref VpnCorpSecurityGroup
+        AuthorVolumeOptSize: !FindInMap [ Properties, EnvDev1, AuthorVolumeOptSize ]
+
+        # Publish
+        #
+        PublishImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", CentOS ]
+        PublishInstanceType: !FindInMap [ Properties, EnvDev1, PublishInstanceType ]
+        PublishSecurityGroupIds: !Join
+          - ","
+          - - !Ref VpnCorpSecurityGroup
+        PublishVolumeOptSize: !FindInMap [ Properties, EnvDev1, PublishVolumeOptSize ]
+
+        # Publish Dispatcher (optional)
+        #
+        PublishDispatcherImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", CentOS ]
+        PublishDispatcherInstanceType: !FindInMap [ Properties, EnvDev1, PublishDispatcherInstanceType ]
+        PublishDispatcherSecurityGroupIds: !Join
+          - ","
+          - - !Ref VpnCorpSecurityGroup
+
+        # DNS Record configuration (optional)
+        #
+        HostedZoneName: !Sub
+          - "${Domain}."
+          - { Domain: !FindInMap [ Properties, Shared, DomainName ] }

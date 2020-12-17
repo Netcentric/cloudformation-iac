@@ -1,0 +1,224 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC peering connection between two virtual private clouds (VPCs). This template also sets up proper routing between the two VPCs if the corresponding Route Tables (up to three, e.g. for Subnets in three different Regions) are provided.'
+
+################################################################################
+#
+# Decision Trees: none
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Naming details'
+        Parameters:
+          - RequestingVpcName
+          - PeerVpcName
+      - Label:
+          default: 'Requesting VPC'
+        Parameters:
+          - RequestingVpcId
+          - RequestingVpcCidr
+          - RequestingVpcRouteTables
+          - RequestingVpcRouteTablesCount
+      - Label:
+          default: 'Peer VPC'
+        Parameters:
+          - PeerVpcId
+          - PeerVpcCidr
+          - PeerVpcRouteTables
+          - PeerVpcRouteTablesCount
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  RequestingVpcName:
+    Description: 'The name of the VPC that is requesting a peering connection.'
+    Type: String
+
+  PeerVpcName:
+    Description: 'The name of the VPC with which you are creating the peering connection.'
+    Type: String
+
+  #=======================================
+  # Requesting VPC
+  #=======================================
+
+  RequestingVpcId:
+    Description: 'The ID of the VPC that is requesting a peering connection.'
+    Type: AWS::EC2::VPC::Id
+
+  RequestingVpcCidr:
+    Description: 'Private IP class of the requesting VPC (e.g. 10.31.0.0/22).'
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+
+  RequestingVpcRouteTables:
+    Description: 'The IDs of the Route Tables of the requesting VPC where routes to the peering connection will be added. Must be as many items as specified in "RequestingVpcRouteTablesCount".'
+    Type: CommaDelimitedList
+
+  RequestingVpcRouteTablesCount:
+    Description: 'The number of Route Tables provided for the requesting VPC.'
+    Type: Number
+    AllowedValues: [ 1, 2, 3 ]
+
+  #=======================================
+  # Peer VPC
+  #=======================================
+
+  PeerVpcId:
+    Description: 'The ID of the VPC with which you are creating the peering connection.'
+    Type: AWS::EC2::VPC::Id
+
+  PeerVpcCidr:
+    Description: 'Private IP class of the peer VPC (e.g. 10.31.0.0/22).'
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+
+  PeerVpcRouteTables:
+    Description: 'The IDs of the route tables of the peer VPC where routes to the peering connection will be added. Must be as many items as specified in "PeerVpcRouteTablesCount".'
+    Type: CommaDelimitedList
+
+  PeerVpcRouteTablesCount:
+    Description: 'The number of Route Tables provided for the peer VPC.'
+    Type: Number
+    AllowedValues: [ 1, 2, 3 ]
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+  #----------------------------
+  # Requesting VPC
+  #----------------------------
+
+  # ...
+  CreateReqRoute2: !Or
+    - !Equals [ !Ref RequestingVpcRouteTablesCount, 2 ]
+    - !Condition CreateReqRoute3
+
+  # ...
+  CreateReqRoute3: !Equals [ !Ref RequestingVpcRouteTablesCount, 3 ]
+
+  #----------------------------
+  # Peer VPC
+  #----------------------------
+
+  # ...
+  CreatePeerRoute2: !Or
+    - !Equals [ !Ref PeerVpcRouteTablesCount, 2 ]
+    - !Condition CreatePeerRoute3
+
+  # ...
+  CreatePeerRoute3: !Equals [ !Ref PeerVpcRouteTablesCount, 3 ]
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# Naming Conventions:
+#  - Name attribute: !Sub '${RootStackName}-<identifier>'
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  #=======================================
+  # Peering Connection
+  #=======================================
+
+  VpcPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      PeerVpcId: !Ref PeerVpcId
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${RequestingVpcName} <-> ${PeerVpcName}'
+      VpcId: !Ref RequestingVpcId
+
+  #----------------------------
+  # Add Routes in the requesting VPC
+  #----------------------------
+
+  ReqRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref PeerVpcCidr
+      RouteTableId: !Select [ '0', !Ref RequestingVpcRouteTables ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+
+  ReqRoute2:
+    Condition: CreateReqRoute2
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref PeerVpcCidr
+      RouteTableId: !Select [ '1', !Ref RequestingVpcRouteTables ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+
+  ReqRoute3:
+    Condition: CreateReqRoute3
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref PeerVpcCidr
+      RouteTableId: !Select [ '2', !Ref RequestingVpcRouteTables ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+
+  #----------------------------
+  # Add Routes in the peer VPC
+  #----------------------------
+
+  PeerRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref RequestingVpcCidr
+      RouteTableId: !Select [ '0', !Ref PeerVpcRouteTables ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+
+  PeerRoute2:
+    Condition: CreatePeerRoute2
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref RequestingVpcCidr
+      RouteTableId: !Select [ '1', !Ref PeerVpcRouteTables ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+
+  PeerRoute3:
+    Condition: CreatePeerRoute3
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: !Ref RequestingVpcCidr
+      RouteTableId: !Select [ '2', !Ref PeerVpcRouteTables ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
