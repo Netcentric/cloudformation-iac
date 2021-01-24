@@ -379,8 +379,8 @@ Resources:
   # VPN Access
   #=======================================
 
-  # Optional: Accessibility via VPN from NC
-  VpnNc:
+  # Optional: Accessibility via VPN
+  Vpn:
     Condition: EnableVpn
     Type: AWS::CloudFormation::Stack
     Properties:
