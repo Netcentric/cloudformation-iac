@@ -48,9 +48,12 @@ Metadata:
       - Label:
           default: 'Instance configuration (optional)'
         Parameters:
+          - InstanceProfile
+      - Label:
+          default: 'Additional features'
+        Parameters:
           - FeatureAutoSnapshot
           - FeatureUptimeWindows
-          - InstanceProfile
       - Label:
           default: '/opt (optional)'
         Parameters:
@@ -141,6 +144,15 @@ Parameters:
   # Instance configuration (optional)
   #=======================================
 
+  InstanceProfile:
+    Description: 'The ARN of an IAM Instance Profile that is used to grant this instance permissions, e.g. to register against the configuration manager (Chef/Puppet).'
+    Type: String
+    Default: ''
+
+  #=======================================
+  # Additional features
+  #=======================================
+
   FeatureAutoSnapshot:
     Description: 'Whether EBS Volumes should be backed up automatically not. This feature can be enabled by specifying a ScheduleName that was used with the "automatic-snapshots" template (examples: "Daily").'
     Type: String
@@ -152,11 +164,6 @@ Parameters:
     # TODO: Update for the new format of having either two cron time-strings or the word "disabled"
     #   AllowedPattern: '((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})?'
     Default: 'disabled'
-
-  InstanceProfile:
-    Description: 'The ARN of an IAM Instance Profile that is used to grant this instance permissions, e.g. to register against the configuration manager (Chef/Puppet).'
-    Type: String
-    Default: ''
 
   #=======================================
   # /opt (optional)
