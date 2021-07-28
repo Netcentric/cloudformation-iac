@@ -57,8 +57,8 @@ Metadata:
           - SecurityGroupIds
           - StickinessDuration
           - SubnetIds
-          - TargetHttpProtocol
           - TargetPort
+          - TargetProtocol
           - VpcId
       - Label:
           default: 'ALB HTTP configuration (optional)'
@@ -159,7 +159,7 @@ Parameters:
     Description: 'The port on which the targets receive traffic.'
     Type: Number
 
-  TargetHttpProtocol:
+  TargetProtocol:
     Description: 'The port on which the Target Group should be created.'
     Type: String
     AllowedValues: [ 'HTTP', 'HTTPS' ]
@@ -352,7 +352,7 @@ Resources:
       Matcher:
         HttpCode: !Ref HealthyStatusCode
       Port: !Ref TargetPort
-      Protocol: !Ref TargetHttpProtocol
+      Protocol: !Ref TargetProtocol
       Tags:
         - Key: 'Name'
           Value: !Sub '${RootStackName}-tg-${Designation}'
