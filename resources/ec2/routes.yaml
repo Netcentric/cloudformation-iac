@@ -106,12 +106,13 @@ Conditions:
   CreateRoute5: !Equals [ !Ref DestinationCidrBlocksCount, 5 ]
 
   #----------------------------
-  # AWS::EC2::Route
+  # Transit Gateway Routes
   #----------------------------
 
   UseTransitGateway: !Not
       - !Equals [ !Ref TransitGatewayId, "" ]
 
+  # When using a Transit Gateway, we need to create "AWS::EC2::Route"
   CreateRouteTableRoutes: !Condition UseTransitGateway
 
   # Create Route Table Route 2 if two or more routes have been provided
@@ -135,9 +136,10 @@ Conditions:
     - !Condition CreateRoute5
 
   #----------------------------
-  # AWS::EC2::VPNConnectionRoute
+  # VPN Gateway Routes
   #----------------------------
 
+  # When using a VPN Gateway, we need to create "AWS::EC2::VPNConnectionRoute"
   CreateVgwRoutes: !Not
       - !Equals [ !Ref VpnConnectionId, "" ]
 
@@ -173,7 +175,7 @@ Conditions:
 
 Resources:
   #----------------------------
-  # AWS::EC2::Route
+  # Transit Gateway Routes
   #----------------------------
 
   Route1:
@@ -232,7 +234,7 @@ Resources:
         - !Ref AWS::NoValue
 
   #----------------------------
-  # AWS::EC2::VPNConnectionRoute
+  # VPN Gateway Routes
   #----------------------------
 
   VgwRoute1:

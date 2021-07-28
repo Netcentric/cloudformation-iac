@@ -408,9 +408,6 @@ Conditions:
 # Resources (required)
 # Declares the AWS resources that you want to include in the stack
 #
-# Naming Conventions:
-#  - Name attribute: !Sub '${RootStackName}-<identifier>-${NameSuffix}'
-#
 # See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
 #
 ################################################################################
@@ -624,10 +621,6 @@ Resources:
 #
 # Outputs (optional)
 # Declares output values that you can import into other stacks (to create cross-stack references)
-#
-# Naming Conventions:
-#  - Logical ID: <same-ID-that-was-used-for-the-resource>
-#  - Export Name: <same-name-that-was-used-for-the-resource>
 #
 # See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
 #

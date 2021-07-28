@@ -148,9 +148,6 @@ Conditions:
 # Resources (required)
 # Declares the AWS resources that you want to include in the stack
 #
-# Naming Conventions:
-#  - Name attribute: !Sub '${RootStackName}-<identifier>'
-#
 # See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
 #
 ################################################################################
