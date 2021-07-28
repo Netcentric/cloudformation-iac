@@ -46,23 +46,20 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - RootStackName
           - NameSuffix
+          - RootStackName
       - Label:
           default: 'ALB configuration'
         Parameters:
+          - DeregistrationDelay
+          - EnableHttp2
           - Scheme
           - SecurityGroupIds
+          - StickinessDuration
           - SubnetIds
           - TargetHttpProtocol
           - TargetPort
           - VpcId
-      - Label:
-          default: 'ALB configuration (optional)'
-        Parameters:
-          - DeregistrationDelay
-          - EnableHttp2
-          - StickinessDuration
       - Label:
           default: 'ALB HTTP configuration (optional)'
         Parameters:
@@ -128,6 +125,17 @@ Parameters:
   # ALB configuration
   #=======================================
 
+  DeregistrationDelay:
+    Description: 'The amount of time, in seconds, for Elastic Load Balancing to wait before changing the state of a deregistering target from draining to unused (0 to 3600).'
+    Type: Number
+    Default: 300
+
+  EnableHttp2:
+    Description: 'Whether HTTP/2 should be enabled or disabled. If disabled, HTTP1.1 will be used exclusively.'
+    Type: String
+    AllowedValues: [ 'false', 'true' ]
+    Default: 'true'
+
   Scheme:
     Description: 'Internet-facing Load Balancers can route requests from clients over the Internet, internal Load Balancers can only route requests from clients with access to the VPC for the Load Balancer.'
     Type: String
@@ -137,6 +145,11 @@ Parameters:
   SecurityGroupIds:
     Description: 'A list that contains the IDs for VPC Security Groups to assign to the Instance.'
     Type: CommaDelimitedList
+
+  StickinessDuration:
+    Description: 'The time period, in seconds, during which requests from a client should be routed to the same target (0 to 604800).'
+    Type: Number
+    Default: 0
 
   SubnetIds:
     Description: 'The IDs of the Subnets that will be attached to the Load Balancer.'
@@ -155,26 +168,6 @@ Parameters:
   VpcId:
     Description: 'The ID of the VPC in which the targets are located.'
     Type: AWS::EC2::VPC::Id
-
-  #=======================================
-  # ALB configuration (optional)
-  #=======================================
-
-  DeregistrationDelay:
-    Description: 'The amount of time, in seconds, for Elastic Load Balancing to wait before changing the state of a deregistering target from draining to unused (0 to 3600).'
-    Type: Number
-    Default: 300
-
-  StickinessDuration:
-    Description: 'The time period, in seconds, during which requests from a client should be routed to the same target (0 to 604800).'
-    Type: Number
-    Default: 0
-
-  EnableHttp2:
-    Description: 'Whether HTTP/2 should be enabled or disabled. If disabled, HTTP1.1 will be used exclusively.'
-    Type: String
-    AllowedValues: [ 'false', 'true' ]
-    Default: 'true'
 
   #=======================================
   # ALB HTTP configuration (optional)
@@ -341,15 +334,15 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-alb-${NameSuffix}'
       LoadBalancerAttributes:
         - Key: routing.http2.enabled
           Value: !Ref EnableHttp2
       Scheme: !Sub ${Scheme}
       SecurityGroups: !Ref SecurityGroupIds
       Subnets: !Ref SubnetIds
+      Tags:
+        - Key: 'Name'
+          Value: !Sub '${RootStackName}-alb-${NameSuffix}'
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -407,8 +400,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: !Ref HttpPort
       Protocol: 'HTTP'
@@ -424,8 +417,8 @@ Resources:
       Certificates:
         - CertificateArn: !Ref SslCertificateArn
       DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: !Ref HttpsPort
       Protocol: 'HTTPS'

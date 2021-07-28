@@ -28,8 +28,8 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - RootStackName
           - NameSuffix
+          - RootStackName
       - Label:
           default: 'Network configuration'
         Parameters:
@@ -66,12 +66,12 @@ Parameters:
   # Naming details
   #=======================================
 
-  RootStackName:
-    Description: 'Name of the top-level stack to which this stack, if nested, ultimately belongs (this stacks name else).'
-    Type: String
-
   NameSuffix:
     Description: 'A string used to tell the different RDS Instances apart (examples: "1" or "2").'
+    Type: String
+
+  RootStackName:
+    Description: 'Name of the top-level stack to which this stack, if nested, ultimately belongs (this stacks name else).'
     Type: String
 
   #=======================================

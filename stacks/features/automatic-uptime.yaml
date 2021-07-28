@@ -57,16 +57,14 @@ Resources:
       Policies:
         - PolicyName: "ec2SchedulerPermissions"
           PolicyDocument:
-            Version: "2012-10-17"
             Statement:
-              - Effect: "Allow"
-                Action:
+              - Action:
                   - "logs:CreateLogGroup"
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
+                Effect: "Allow"
                 Resource: "arn:aws:logs:*:*:log-group:/aws/lambda/*"
-              - Effect: "Allow"
-                Action:
+              - Action:
                   - "ec2:StartInstances"
                   - "ec2:StopInstances"
                   - "ec2:DescribeRegions"
@@ -81,7 +79,9 @@ Resources:
                   - "kms:ReEncrypt*"
                   - "kms:DescribeKey"
                   - "kms:GenerateDataKey*"
+                Effect: "Allow"
                 Resource: "*"
+            Version: "2012-10-17"
 
   EventRole:
     Type: AWS::Lambda::Permission
@@ -89,8 +89,8 @@ Resources:
       - LambdaFunction
       - CloudwatchEvent
     Properties:
-      FunctionName: !Ref LambdaFunction
       Action: "lambda:InvokeFunction"
+      FunctionName: !Ref LambdaFunction
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt CloudwatchEvent.Arn
 
@@ -98,9 +98,6 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn: EC2SchedulerRole
     Properties:
-      Handler: 'index.handler'
-      Role: !GetAtt EC2SchedulerRole.Arn
-      Description: 'EC2 Scheduler Lambda function for automatically starting and stopping EC2 instances.'
       Code:
         ZipFile: |
           'use strict';
@@ -212,6 +209,9 @@ Resources:
             });
 
           };
+      Description: 'EC2 Scheduler Lambda function for automatically starting and stopping EC2 instances.'
+      Handler: 'index.handler'
+      Role: !GetAtt EC2SchedulerRole.Arn
       Runtime: 'nodejs10.x'
       Timeout: '300'
 

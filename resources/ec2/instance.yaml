@@ -33,22 +33,19 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - RootStackName
           - NameSuffix
-          - HostName
+          - RootStackName
       - Label:
           default: 'Instance configuration'
         Parameters:
           - AvailabilityZone
+          - HostName
           - ImageId
+          - InstanceProfile
           - InstanceType
           - RootKeyName
           - SecurityGroupIds
           - SubnetId
-      - Label:
-          default: 'Instance configuration (optional)'
-        Parameters:
-          - InstanceProfile
       - Label:
           default: 'Additional features'
         Parameters:
@@ -107,11 +104,6 @@ Parameters:
     Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "search-prod").'
     Type: String
 
-  HostName:
-    Description: 'The name that will be used for this host and, if created, its DNS name (example: "sites-dev1-author-1"; default: "${RootStackName}-${NameSuffix}").'
-    Type: String
-    Default: ''
-
   #=======================================
   # Instance configuration
   #=======================================
@@ -120,9 +112,19 @@ Parameters:
     Description: 'The Availability Zone in which the Instance and its Volumes will be placed.'
     Type: AWS::EC2::AvailabilityZone::Name
 
+  HostName:
+    Description: 'The name that will be used for this host and, if created, its DNS name (example: "sites-dev1-author-1"; default: "${RootStackName}-${NameSuffix}").'
+    Type: String
+    Default: ''
+
   ImageId:
     Description: 'The unique ID of the Amazon Machine Image (AMI) the Instance will be created from.'
     Type: AWS::EC2::Image::Id
+
+  InstanceProfile:
+    Description: 'The ARN of an IAM Instance Profile that is used to grant this instance permissions, e.g. to register against the configuration manager (Chef/Puppet).'
+    Type: String
+    Default: ''
 
   InstanceType:
     Description: 'The instance type (examples: "t3a.micro" or "m5.xlarge").'
@@ -139,15 +141,6 @@ Parameters:
   SubnetId:
     Description: 'The ID of the Subnet the Instance will be launched into.'
     Type: AWS::EC2::Subnet::Id
-
-  #=======================================
-  # Instance configuration (optional)
-  #=======================================
-
-  InstanceProfile:
-    Description: 'The ARN of an IAM Instance Profile that is used to grant this instance permissions, e.g. to register against the configuration manager (Chef/Puppet).'
-    Type: String
-    Default: ''
 
   #=======================================
   # Additional features
@@ -377,15 +370,15 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       AvailabilityZone: !Ref AvailabilityZone
+      IamInstanceProfile: !If
+          - HasInstanceProfile
+          - !Ref InstanceProfile
+          - !Ref AWS::NoValue
       ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
       KeyName: !Ref RootKeyName
       SecurityGroupIds: !Ref SecurityGroupIds
       SubnetId: !Ref SubnetId
-      IamInstanceProfile: !If
-          - HasInstanceProfile
-          - !Ref InstanceProfile
-          - !Ref AWS::NoValue
       Tags:
         - Key: 'Name'
           Value: !Sub '${RootStackName}-instance-${NameSuffix}'
@@ -903,7 +896,6 @@ Resources:
         - !Ref VolumeOptIops
         - !Ref AWS::NoValue
       Size: !Ref VolumeOptSize
-      VolumeType: !Ref VolumeOptType
       Tags:
         - Key: 'Name'
           Value: !Sub '${RootStackName}-volume-${NameSuffix}-opt'
@@ -912,6 +904,7 @@ Resources:
           - Key: 'AutomaticSnapshots'
             Value: !Ref FeatureAutoSnapshot
           - !Ref AWS::NoValue
+      VolumeType: !Ref VolumeOptType
 
   # The Volume that will be mounted to /tmp
   VolumeTmp:
@@ -926,7 +919,6 @@ Resources:
         - !Ref VolumeTmpIops
         - !Ref AWS::NoValue
       Size: !Ref VolumeTmpSize
-      VolumeType: !Ref VolumeTmpType
       Tags:
         - Key: 'Name'
           Value: !Sub '${RootStackName}-volume-${NameSuffix}-tmp'
@@ -935,6 +927,7 @@ Resources:
           - Key: 'AutomaticSnapshots'
             Value: !Ref FeatureAutoSnapshot
           - !Ref AWS::NoValue
+      VolumeType: !Ref VolumeTmpType
 
   # The Volume that will be mounted to /var
   VolumeVar:
@@ -949,7 +942,6 @@ Resources:
         - !Ref VolumeVarIops
         - !Ref AWS::NoValue
       Size: !Ref VolumeVarSize
-      VolumeType: !Ref VolumeVarType
       Tags:
         - Key: 'Name'
           Value: !Sub '${RootStackName}-volume-${NameSuffix}-var'
@@ -958,6 +950,7 @@ Resources:
           - Key: 'AutomaticSnapshots'
             Value: !Ref FeatureAutoSnapshot
           - !Ref AWS::NoValue
+      VolumeType: !Ref VolumeVarType
 
   #=======================================
   # Route 53 DNS Records

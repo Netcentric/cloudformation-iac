@@ -136,10 +136,10 @@ Resources:
     Condition: CreateRemoteDnsRecord
     Type: Custom::RemoteDnsRecord
     Properties:
-      # The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records. The service token must be from the same region in which you are creating this stack.
-      ServiceToken: !Ref ServiceToken
       # The name of the record that we want to create, update, or delete, including the Hosted Zone name (example: "foobar.example.com")
       Name: !Sub '${DnsName}.${HostedZoneName}'
+      # The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records. The service token must be from the same region in which you are creating this stack.
+      ServiceToken: !Ref ServiceToken
       # The current or new DNS record value (in this case the IP)
       Target: !Ref Target
       # The DNS record type (currently supported values for are: "A" and "CNAME")

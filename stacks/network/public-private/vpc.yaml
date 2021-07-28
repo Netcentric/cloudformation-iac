@@ -37,11 +37,14 @@ Metadata:
       - Label:
           default: 'Network configuration'
         Parameters:
+          - InternetAccess
           - VpcCidr
+          - VpcWideDmz
+      - Label:
+          default: 'Network configuration - Availability Zone 1'
+        Parameters:
           - Az1PublicSubnetCidr
           - Az1PrivateSubnetCidr
-          - InternetAccess
-          - VpcWideDmz
       - Label:
           default: 'Network configuration - Availability Zone 2 (optional)'
         Parameters:
@@ -84,6 +87,12 @@ Parameters:
   # Network configuration
   #=======================================
 
+  InternetAccess:
+    Description: 'Indicates whether internet access should be possible for Instances in the private Subnets.'
+    Type: String
+    AllowedValues: [ 'disable', 'enable' ]
+    Default: 'enable'
+
   VpcCidr:
     Description: 'Private IP class for VPC (e.g. 10.31.0.0/22).'
     Type: String
@@ -91,6 +100,16 @@ Parameters:
     MaxLength: 18
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x min /16.'
+
+  VpcWideDmz:
+    Description: 'Indicates whether a VPC wide DMZ should be created.'
+    Type: String
+    AllowedValues: [ 'disable', 'enable' ]
+    Default: 'disable'
+
+  #=======================================
+  # Network configuration - Availability Zone 1
+  #=======================================
 
   Az1PublicSubnetCidr:
     Description: 'Public Subnet-A IP class (must be a valid subclass of VPC, e.g. 10.31.0.0/24).'
@@ -107,18 +126,6 @@ Parameters:
     MaxLength: 18
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
-
-  InternetAccess:
-    Description: 'Indicates whether internet access should be possible for Instances in the private Subnets.'
-    Type: String
-    AllowedValues: [ 'disable', 'enable' ]
-    Default: 'enable'
-
-  VpcWideDmz:
-    Description: 'Indicates whether a VPC wide DMZ should be created.'
-    Type: String
-    AllowedValues: [ 'disable', 'enable' ]
-    Default: 'disable'
 
   #=======================================
   # Network configuration - Availability Zone 2 (optional)
@@ -285,8 +292,8 @@ Resources:
       Parameters:
         # Naming details
         #
-        RootStackName: !Ref RootStackName
         NameSuffix: 'az1'
+        RootStackName: !Ref RootStackName
 
         # Subnet configuration
         #
@@ -307,8 +314,8 @@ Resources:
       Parameters:
         # Naming details
         #
-        RootStackName: !Ref RootStackName
         NameSuffix: 'az2'
+        RootStackName: !Ref RootStackName
 
         # Subnet configuration
         #
@@ -329,8 +336,8 @@ Resources:
       Parameters:
         # Naming details
         #
-        RootStackName: !Ref RootStackName
         NameSuffix: 'az3'
+        RootStackName: !Ref RootStackName
 
         # Subnet configuration
         #
@@ -357,23 +364,23 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
-      RouteTableId: !Ref InternetGatewayRouteTable
       GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref InternetGatewayRouteTable
 
   InternetGatewayRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref Vpc
       Tags:
         - Key: Name
           Value: !Sub '${RootStackName}-rt-public'
+      VpcId: !Ref Vpc
 
   # Connect the VPC with the internet gateway (WWW)
   VpcInternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref Vpc
       InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
 
   #=======================================
   # VPN Access
@@ -458,10 +465,10 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: !Sub 'Rules for connections from and to all Instances in VPC ${RootStackName}'
-      VpcId: !Ref Vpc
       Tags:
         - Key: 'Name'
           Value: !Sub '${RootStackName}-sg-vpc'
+      VpcId: !Ref Vpc
 
   # If a VOC wide DMZ is enabled, allow incoming traffic from this SG -> All instances can communicate with all instances attached to the same SG
   SecurityGroupVpcIngress:
@@ -470,8 +477,8 @@ Resources:
     Properties:
       Description: 'All Instances (DMZ)'
       GroupId: !Ref SecurityGroupVpc
-      SourceSecurityGroupId: !Ref SecurityGroupVpc
       IpProtocol: '-1'
+      SourceSecurityGroupId: !Ref SecurityGroupVpc
 
 
 ################################################################################

@@ -28,8 +28,8 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - RootStackName
           - NameSuffix
+          - RootStackName
       - Label:
           default: 'Host Group configuration'
         Parameters:
@@ -47,8 +47,8 @@ Metadata:
           default: 'Author'
         Parameters:
           - AuthorImageId
-          - AuthorSecurityGroupIds
           - AuthorInstanceType
+          - AuthorSecurityGroupIds
           - AuthorVolumeOptIops
           - AuthorVolumeOptSize
           - AuthorVolumeOptType
@@ -71,8 +71,8 @@ Metadata:
           default: 'Publish'
         Parameters:
           - PublishImageId
-          - PublishSecurityGroupIds
           - PublishInstanceType
+          - PublishSecurityGroupIds
           - PublishVolumeOptIops
           - PublishVolumeOptSize
           - PublishVolumeOptType
@@ -432,20 +432,23 @@ Resources:
       Parameters:
         # Naming details
         #
-        RootStackName: !Ref RootStackName
         NameSuffix: !Sub 'author-${NameSuffix}'
+        RootStackName: !Ref RootStackName
 
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
-        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
-        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
         ImageId: !Ref AuthorImageId
         InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref AuthorInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref AuthorSecurityGroupIds ]
         SubnetId: !Ref SubnetId
+
+        # Additional features
+        #
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
 
         # /opt (optional)
         #
@@ -485,20 +488,23 @@ Resources:
       Parameters:
         # Naming details
         #
-        RootStackName: !Ref RootStackName
         NameSuffix: !Sub 'author-${NameSuffix}-dispatcher'
+        RootStackName: !Ref RootStackName
 
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
-        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
-        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
         ImageId: !Ref AuthorDispatcherImageId
         InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref AuthorDispatcherInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref AuthorDispatcherSecurityGroupIds ]
         SubnetId: !Ref SubnetId
+
+        # Additional features
+        #
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
 
         # /var (optional)
         #
@@ -527,20 +533,23 @@ Resources:
       Parameters:
         # Naming details
         #
-        RootStackName: !Ref RootStackName
         NameSuffix: !Sub 'publish-${NameSuffix}'
+        RootStackName: !Ref RootStackName
 
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
-        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
-        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
         ImageId: !Ref PublishImageId
         InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref PublishInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref PublishSecurityGroupIds ]
         SubnetId: !Ref SubnetId
+
+        # Additional features
+        #
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
 
         # /opt (optional)
         #
@@ -580,20 +589,23 @@ Resources:
       Parameters:
         # Naming details
         #
-        RootStackName: !Ref RootStackName
         NameSuffix: !Sub 'publish-${NameSuffix}-dispatcher'
+        RootStackName: !Ref RootStackName
 
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
-        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
-        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
         ImageId: !Ref PublishDispatcherImageId
         InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref PublishDispatcherInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref PublishDispatcherSecurityGroupIds ]
         SubnetId: !Ref SubnetId
+
+        # Additional features
+        #
+        FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
+        FeatureUptimeWindows: !Join [ ',', !Ref FeatureUptimeWindows ]
 
         # /var (optional)
         #

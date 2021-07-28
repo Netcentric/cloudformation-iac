@@ -141,17 +141,17 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone
       CidrBlock: !Ref PrivateSubnetCidr
       MapPublicIpOnLaunch: true
-      VpcId: !Ref Vpc
       Tags:
         - Key: Name
           Value: !Sub '${RootStackName}-sn-private-${NameSuffix}'
+      VpcId: !Ref Vpc
 
   # Connecting private route table with the private subnet
   PrivateSubnetPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PrivateSubnet
       RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet
 
   #----------------------------
   # Public Subnet
@@ -183,8 +183,8 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
-      RouteTableId: !Ref PrivateRouteTable
       NatGatewayId: !Ref PublicNatGateway
+      RouteTableId: !Ref PrivateRouteTable
 
   # This Subnet will be accessible from the internet. All resources that need to be public must be located here.
   PublicSubnet:
@@ -193,17 +193,17 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone
       CidrBlock: !Ref PublicSubnetCidr
       MapPublicIpOnLaunch: true
-      VpcId: !Ref Vpc
       Tags:
         - Key: Name
           Value: !Sub '${RootStackName}-sn-public-${NameSuffix}'
+      VpcId: !Ref Vpc
 
   # Connecting internet gateway route table with the public subnet
   PublicSubnetPublicRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref IgwRouteTable
+      SubnetId: !Ref PublicSubnet
 
 
 ################################################################################

@@ -225,12 +225,12 @@ Resources:
     Condition: CreateTransitGateway
     Type: AWS::EC2::TransitGateway
     Properties:
-      Description: "..."
       AmazonSideAsn: !If
         - SetAmazonSideAsn
         - !Ref AmazonSideAsn
         - !Ref AWS::NoValue
       AutoAcceptSharedAttachments: !Ref AutoAcceptSharedAttachments
+      Description: "..."
       Tags:
         - Key: 'Name'
           Value: !Sub '${RootStackName}-tgw'

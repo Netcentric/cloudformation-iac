@@ -23,20 +23,20 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - RequestingVpcName
           - PeerVpcName
+          - RequestingVpcName
       - Label:
           default: 'Requesting VPC'
         Parameters:
-          - RequestingVpcId
           - RequestingVpcCidr
+          - RequestingVpcId
           - RequestingVpcRouteTables
           - RequestingVpcRouteTablesCount
       - Label:
           default: 'Peer VPC'
         Parameters:
-          - PeerVpcId
           - PeerVpcCidr
+          - PeerVpcId
           - PeerVpcRouteTables
           - PeerVpcRouteTablesCount
 
@@ -55,26 +55,26 @@ Parameters:
   # Naming details
   #=======================================
 
-  RequestingVpcName:
-    Description: 'The name of the VPC that is requesting a peering connection.'
-    Type: String
-
   PeerVpcName:
     Description: 'The name of the VPC with which you are creating the peering connection.'
+    Type: String
+
+  RequestingVpcName:
+    Description: 'The name of the VPC that is requesting a peering connection.'
     Type: String
 
   #=======================================
   # Requesting VPC
   #=======================================
 
-  RequestingVpcId:
-    Description: 'The ID of the VPC that is requesting a peering connection.'
-    Type: AWS::EC2::VPC::Id
-
   RequestingVpcCidr:
     Description: 'Private IP class of the requesting VPC (e.g. 10.31.0.0/22).'
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+
+  RequestingVpcId:
+    Description: 'The ID of the VPC that is requesting a peering connection.'
+    Type: AWS::EC2::VPC::Id
 
   RequestingVpcRouteTables:
     Description: 'The IDs of the Route Tables of the requesting VPC where routes to the peering connection will be added. Must be as many items as specified in "RequestingVpcRouteTablesCount".'
@@ -89,14 +89,14 @@ Parameters:
   # Peer VPC
   #=======================================
 
-  PeerVpcId:
-    Description: 'The ID of the VPC with which you are creating the peering connection.'
-    Type: AWS::EC2::VPC::Id
-
   PeerVpcCidr:
     Description: 'Private IP class of the peer VPC (e.g. 10.31.0.0/22).'
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+
+  PeerVpcId:
+    Description: 'The ID of the VPC with which you are creating the peering connection.'
+    Type: AWS::EC2::VPC::Id
 
   PeerVpcRouteTables:
     Description: 'The IDs of the route tables of the peer VPC where routes to the peering connection will be added. Must be as many items as specified in "PeerVpcRouteTablesCount".'

@@ -317,7 +317,6 @@ Resources:
     DependsOn: [ VpnGatewayAttachment ]
     Type: AWS::EC2::VPNConnection
     Properties:
-      Type: 'ipsec.1'
       CustomerGatewayId: !Ref CustomerGatewayId
       StaticRoutesOnly: !If
         # If we want to create one or more static routes, we need static routing
@@ -327,6 +326,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub 'company-network <> ${RootStackName}'
+      Type: 'ipsec.1'
       VpnGatewayId: !Ref VpnGateway
 
   VpnGateway:
