@@ -174,7 +174,7 @@ Parameters:
   VolumeOptIops:
     Description: 'The number of I/O operations per second (IOPs) that the Volume will support (only used if VolumeOptType is set to "io1", "io2" or "gp3").'
     Type: Number
-    Default: 3000
+    Default: 0
 
   VolumeOptSize:
     Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
@@ -205,7 +205,7 @@ Parameters:
   VolumeTmpIops:
     Description: 'The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeTmpType is set to "io1", "io2" or "gp3").'
     Type: Number
-    Default: 3000
+    Default: 0
 
   VolumeTmpSize:
     Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
@@ -234,9 +234,9 @@ Parameters:
     Default: 'false'
 
   VolumeVarIops:
-    Type: Number
     Description: 'The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeVarType is set to "io1", "io2" or "gp3").'
-    Default: 3000
+    Type: Number
+    Default: 0
 
   VolumeVarSize:
     Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
@@ -324,24 +324,30 @@ Conditions:
   CreateVolumeVar: !Not
     - !Equals [ !Ref VolumeVarSize, 0 ]
 
-  # We need to know if the VolumeType is set to "io1", "io2" or "gp3 so that we later can apply the corresponding settings
-  VolumeOptIsIoConfigurable: !Or
-    - !Equals [ !Ref VolumeOptType, 'gp3' ]
+  # Whether the I/O performance can and should be set or not
+  SetVolumeOptIops: !And
+    - !Not
+      - !Equals [ !Ref VolumeOptIops, 0 ]
     - !Or
+      - !Equals [ !Ref VolumeOptType, 'gp3' ]
       - !Equals [ !Ref VolumeOptType, 'io1' ]
       - !Equals [ !Ref VolumeOptType, 'io2' ]
 
-  # We need to know if the VolumeType is set to "io1", "io2" or "gp3 so that we later can apply the corresponding settings
-  VolumeTmpIsIoConfigurable: !Or
-    - !Equals [ !Ref VolumeTmpType, 'gp3' ]
+  # Whether the I/O performance can and should be set or not
+  SetVolumeTmpIops: !And
+    - !Not
+      - !Equals [ !Ref VolumeTmpIops, 0 ]
     - !Or
+      - !Equals [ !Ref VolumeTmpType, 'gp3' ]
       - !Equals [ !Ref VolumeTmpType, 'io1' ]
       - !Equals [ !Ref VolumeTmpType, 'io2' ]
 
-  # We need to know if the VolumeType is set to "io1", "io2" or "gp3" so that we later can apply the corresponding settings
-  VolumeVarIsIoConfigurable: !Or
-    - !Equals [ !Ref VolumeVarType, 'gp3' ]
+  # Whether the I/O performance can and should be set or not
+  SetVolumeVarIops: !And
+    - !Not
+      - !Equals [ !Ref VolumeVarIops, 0 ]
     - !Or
+      - !Equals [ !Ref VolumeVarType, 'gp3' ]
       - !Equals [ !Ref VolumeVarType, 'io1' ]
       - !Equals [ !Ref VolumeVarType, 'io2' ]
 
@@ -886,7 +892,7 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone
       Encrypted: !Ref VolumeOptEncryption
       Iops: !If
-        - VolumeOptIsIoConfigurable
+        - SetVolumeOptIops
         - !Ref VolumeOptIops
         - !Ref AWS::NoValue
       Size: !Ref VolumeOptSize
@@ -909,7 +915,7 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone
       Encrypted: !Ref VolumeTmpEncryption
       Iops: !If
-        - VolumeTmpIsIoConfigurable
+        - SetVolumeTmpIops
         - !Ref VolumeTmpIops
         - !Ref AWS::NoValue
       Size: !Ref VolumeTmpSize
@@ -932,7 +938,7 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone
       Encrypted: !Ref VolumeVarEncryption
       Iops: !If
-        - VolumeVarIsIoConfigurable
+        - SetVolumeVarIops
         - !Ref VolumeVarIops
         - !Ref AWS::NoValue
       Size: !Ref VolumeVarSize
