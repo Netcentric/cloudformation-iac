@@ -46,7 +46,7 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - NameSuffix
+          - Designation
           - RootStackName
       - Label:
           default: 'ALB configuration'
@@ -113,7 +113,7 @@ Parameters:
   # Naming details
   #=======================================
 
-  NameSuffix:
+  Designation:
     Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
@@ -339,7 +339,7 @@ Resources:
       Subnets: !Ref SubnetIds
       Tags:
         - Key: 'Name'
-          Value: !Sub '${RootStackName}-alb-${NameSuffix}'
+          Value: !Sub '${RootStackName}-alb-${Designation}'
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -355,7 +355,7 @@ Resources:
       Protocol: !Ref TargetHttpProtocol
       Tags:
         - Key: 'Name'
-          Value: !Sub '${RootStackName}-tg-${NameSuffix}'
+          Value: !Sub '${RootStackName}-tg-${Designation}'
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: !Ref DeregistrationDelay
@@ -433,7 +433,7 @@ Resources:
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub '${RootStackName}-lb-${NameSuffix}'
+        DnsName: !Sub '${RootStackName}-lb-${Designation}'
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt ApplicationLoadBalancer.DNSName
         TimeToLive: !Ref TimeToLive

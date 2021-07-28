@@ -28,7 +28,7 @@ Metadata:
       - Label:
           default: "Naming details"
         Parameters:
-          - NameSuffix
+          - Designation
       - Label:
           default: "General configuration"
         Parameters:
@@ -56,7 +56,7 @@ Parameters:
   # Naming details
   #----------------------------
 
-  NameSuffix:
+  Designation:
     Description: "A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number)."
     Type: String
 
@@ -234,7 +234,7 @@ Resources:
             request.get_method = lambda: 'PUT'
 
             url = opener.open(request)
-      Description: !Sub "Lambda that is triggered by SNS and manages the Route 53 records for ${NameSuffix} (${HostedZone})."
+      Description: !Sub "Lambda that is triggered by SNS and manages the Route 53 records for ${Designation} (${HostedZone})."
       Handler: index.lambda_handler
       Role: !GetAtt ManageR53RecordRole.Arn
       Runtime: python2.7
@@ -288,7 +288,7 @@ Resources:
     Condition: CreateKmsMasterKey
     Type: AWS::KMS::Key
     Properties:
-      Description: !Sub "Master key used to encrypt the remote DNS management SNS Topic for '${NameSuffix}' (${HostedZone})."
+      Description: !Sub "Master key used to encrypt the remote DNS management SNS Topic for '${Designation}' (${HostedZone})."
       KeyPolicy:
         Id: auto-sns-1
         Statement:
@@ -339,7 +339,7 @@ Resources:
     Condition: CreateKmsMasterKey
     Type: AWS::KMS::Alias
     Properties:
-      AliasName: !Sub "alias/RemoteDnsManagement/${NameSuffix}/${HostedZone}"
+      AliasName: !Sub "alias/RemoteDnsManagement/${Designation}/${HostedZone}"
       TargetKeyId: !Ref RequestR53RecordMasterKey
 
   # Allow the provided accounts to publish to the Topic (-> trigger the Lambda)

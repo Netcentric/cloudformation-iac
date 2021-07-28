@@ -33,7 +33,7 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - NameSuffix
+          - Designation
           - RootStackName
       - Label:
           default: 'Instance configuration'
@@ -96,7 +96,7 @@ Parameters:
   # Naming details
   #=======================================
 
-  NameSuffix:
+  Designation:
     Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
@@ -113,7 +113,7 @@ Parameters:
     Type: AWS::EC2::AvailabilityZone::Name
 
   HostName:
-    Description: 'The name that will be used for this host and, if created, its DNS name (example: "sites-dev1-author-1"; default: "${RootStackName}-${NameSuffix}").'
+    Description: 'The name that will be used for this host and, if created, its DNS name (example: "sites-dev1-author-1"; default: "${RootStackName}-${Designation}").'
     Type: String
     Default: ''
 
@@ -375,7 +375,7 @@ Resources:
       SubnetId: !Ref SubnetId
       Tags:
         - Key: 'Name'
-          Value: !Sub '${RootStackName}-instance-${NameSuffix}'
+          Value: !Sub '${RootStackName}-instance-${Designation}'
         - !If
           - EnableUptimeWindows
           - Key: 'startTime'
@@ -863,7 +863,7 @@ Resources:
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
-                    - !Sub '${RootStackName}-${NameSuffix}'
+                    - !Sub '${RootStackName}-${Designation}'
             0200_systemd:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: !Sub
@@ -871,7 +871,7 @@ Resources:
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
-                    - !Sub '${RootStackName}-${NameSuffix}'
+                    - !Sub '${RootStackName}-${Designation}'
 
   #=======================================
   # Volumes
@@ -892,7 +892,7 @@ Resources:
       Size: !Ref VolumeOptSize
       Tags:
         - Key: 'Name'
-          Value: !Sub '${RootStackName}-volume-${NameSuffix}-opt'
+          Value: !Sub '${RootStackName}-volume-${Designation}-opt'
         - !If
           - EnableAutoSnapshot
           - Key: 'AutomaticSnapshots'
@@ -915,7 +915,7 @@ Resources:
       Size: !Ref VolumeTmpSize
       Tags:
         - Key: 'Name'
-          Value: !Sub '${RootStackName}-volume-${NameSuffix}-tmp'
+          Value: !Sub '${RootStackName}-volume-${Designation}-tmp'
         - !If
           - EnableAutoSnapshot
           - Key: 'AutomaticSnapshots'
@@ -938,7 +938,7 @@ Resources:
       Size: !Ref VolumeVarSize
       Tags:
         - Key: 'Name'
-          Value: !Sub '${RootStackName}-volume-${NameSuffix}-var'
+          Value: !Sub '${RootStackName}-volume-${Designation}-var'
         - !If
           - EnableAutoSnapshot
           - Key: 'AutomaticSnapshots'
@@ -959,7 +959,7 @@ Resources:
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub '${RootStackName}-${NameSuffix}'
+        DnsName: !Sub '${RootStackName}-${Designation}'
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt Instance.PrivateIp
         Type: 'A'

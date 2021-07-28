@@ -289,7 +289,7 @@ Resources:
       Parameters:
         # Naming details
         #
-        NameSuffix: 'az1'
+        Designation: 'az1'
         RootStackName: !Ref RootStackName
 
         # Subnet configuration
@@ -311,7 +311,7 @@ Resources:
       Parameters:
         # Naming details
         #
-        NameSuffix: 'az2'
+        Designation: 'az2'
         RootStackName: !Ref RootStackName
 
         # Subnet configuration
@@ -333,7 +333,7 @@ Resources:
       Parameters:
         # Naming details
         #
-        NameSuffix: 'az3'
+        Designation: 'az3'
         RootStackName: !Ref RootStackName
 
         # Subnet configuration

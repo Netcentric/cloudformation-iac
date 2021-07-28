@@ -23,7 +23,7 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - NameSuffix
+          - Designation
           - RootStackName
       - Label:
           default: 'Subnet configuration'
@@ -50,7 +50,7 @@ Parameters:
   # Naming details
   #=======================================
 
-  NameSuffix:
+  Designation:
     Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
@@ -128,7 +128,7 @@ Resources:
       VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub '${RootStackName}-rt-private-${NameSuffix}'
+          Value: !Sub '${RootStackName}-rt-private-${Designation}'
 
   # This private subnet should contain most resources. Especially security critical ones.
   # Components in this subnet can only 'dial out' via the NAT Gateway but are not by default not reachable form the WWW
@@ -140,7 +140,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub '${RootStackName}-sn-private-${NameSuffix}'
+          Value: !Sub '${RootStackName}-sn-private-${Designation}'
       VpcId: !Ref Vpc
 
   # Connecting private route table with the private subnet
@@ -172,7 +172,7 @@ Resources:
       SubnetId: !Ref PublicSubnet
       Tags:
         - Key: Name
-          Value: !Sub '${RootStackName}-natgw-public-${NameSuffix}'
+          Value: !Sub '${RootStackName}-natgw-public-${Designation}'
 
   # Route to let instances in the PrivateSubnet access the internet via PublicNatGateway.
   PublicNatGatewayRoute:
@@ -192,7 +192,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub '${RootStackName}-sn-public-${NameSuffix}'
+          Value: !Sub '${RootStackName}-sn-public-${Designation}'
       VpcId: !Ref Vpc
 
   # Connecting internet gateway route table with the public subnet

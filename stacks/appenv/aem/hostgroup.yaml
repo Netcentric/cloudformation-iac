@@ -28,7 +28,7 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - NameSuffix
+          - Designation
           - RootStackName
       - Label:
           default: 'Host Group configuration'
@@ -112,7 +112,7 @@ Parameters:
   # Naming details
   #=======================================
 
-  NameSuffix:
+  Designation:
     Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
@@ -429,7 +429,7 @@ Resources:
       Parameters:
         # Naming details
         #
-        NameSuffix: !Sub 'author-${NameSuffix}'
+        Designation: !Sub 'author-${Designation}'
         RootStackName: !Ref RootStackName
 
         # Instance configuration
@@ -485,7 +485,7 @@ Resources:
       Parameters:
         # Naming details
         #
-        NameSuffix: !Sub 'author-${NameSuffix}-dispatcher'
+        Designation: !Sub 'author-${Designation}-dispatcher'
         RootStackName: !Ref RootStackName
 
         # Instance configuration
@@ -530,7 +530,7 @@ Resources:
       Parameters:
         # Naming details
         #
-        NameSuffix: !Sub 'publish-${NameSuffix}'
+        Designation: !Sub 'publish-${Designation}'
         RootStackName: !Ref RootStackName
 
         # Instance configuration
@@ -586,7 +586,7 @@ Resources:
       Parameters:
         # Naming details
         #
-        NameSuffix: !Sub 'publish-${NameSuffix}-dispatcher'
+        Designation: !Sub 'publish-${Designation}-dispatcher'
         RootStackName: !Ref RootStackName
 
         # Instance configuration

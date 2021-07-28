@@ -28,7 +28,7 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - NameSuffix
+          - Designation
           - RootStackName
       - Label:
           default: 'Network configuration'
@@ -66,7 +66,7 @@ Parameters:
   # Naming details
   #=======================================
 
-  NameSuffix:
+  Designation:
     Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
@@ -176,8 +176,8 @@ Resources:
   SubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: !Sub 'Subnet Group for ${RootStackName}-mysql-instance-${NameSuffix}'
-      DBSubnetGroupName: !Sub '${RootStackName}-mysql-sn-group-${NameSuffix}'
+      DBSubnetGroupDescription: !Sub 'Subnet Group for ${RootStackName}-mysql-instance-${Designation}'
+      DBSubnetGroupName: !Sub '${RootStackName}-mysql-sn-group-${Designation}'
       SubnetIds: !Ref SubnetIds
 
   # The Multi-AZ MySQL instance
@@ -190,7 +190,7 @@ Resources:
       MultiAZ: 'true'
       BackupRetentionPeriod: 15
       DBInstanceClass: !Ref DBInstanceClass
-      DBInstanceIdentifier: !Sub '${RootStackName}-mysql-instance-${NameSuffix}'
+      DBInstanceIdentifier: !Sub '${RootStackName}-mysql-instance-${Designation}'
       DBSubnetGroupName: !Ref SubnetGroup
       DeleteAutomatedBackups: 'false'
       DeletionProtection: 'false'
@@ -221,7 +221,7 @@ Resources:
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub '${RootStackName}-mysql-${NameSuffix}'
+        DnsName: !Sub '${RootStackName}-mysql-${Designation}'
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt RDSMySQL.Endpoint.Address
         TimeToLive: !Ref TimeToLive
