@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'VPC comprising of one to three Availability Zones, each containing a public and a private Subnet'
+Description: 'CloudFormation IaC --- VPC comprising of one to three Availability Zones, each containing a public and a private Subnet'
 
 ################################################################################
 #

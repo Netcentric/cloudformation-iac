@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Infrastructure for automatic, schedule based creation EBS Snapshots"
+Description: "CloudFormation IaC --- Infrastructure for automatic, schedule based creation EBS Snapshots"
 
 ################################################################################
 #

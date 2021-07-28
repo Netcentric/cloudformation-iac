@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Shared VPN infrastructure required for either the modern Transit Gateways or the older Virtual Private Gateways.'
+Description: 'CloudFormation IaC --- Shared VPN infrastructure required for either the modern Transit Gateways or the older Virtual Private Gateways.'
 
 ################################################################################
 #

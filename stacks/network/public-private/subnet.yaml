@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'A public (accessible from the internet) and a private (accessible only via VPN) Subnet'
+Description: 'CloudFormation IaC --- A public (accessible from the internet) and a private (accessible only via VPN) Subnet'
 
 ################################################################################
 #
@@ -23,8 +23,8 @@ Metadata:
       - Label:
           default: 'Naming details'
         Parameters:
-          - RootStackName
           - NameSuffix
+          - RootStackName
       - Label:
           default: 'Subnet configuration'
         Parameters:
@@ -50,12 +50,12 @@ Parameters:
   # Naming details
   #=======================================
 
-  RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "infra" or "nonprod").'
+  NameSuffix:
+    Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
-  NameSuffix:
-    Description: 'String used to tell the different subnet apart (examples: "az1" or "az2").'
+  RootStackName:
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "infra" or "nonprod").'
     Type: String
 
   #=======================================

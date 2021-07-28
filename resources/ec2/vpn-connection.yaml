@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Site-to-Site VPN connection via either Transit Gateway or Virtual Private Gateway'
+Description: 'CloudFormation IaC --- Site-to-Site VPN connection via either Transit Gateway or Virtual Private Gateway'
 
 ################################################################################
 #

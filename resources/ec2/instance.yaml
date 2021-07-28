@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'EC2 Instance with optional Route 53 DNS Records. The template contains Cloud-Init code that will pre-install AWS-CLI Tools, CFN-Bootstrap, CFN-Hup and the Puppet Agent together with some service scripts for additional functionality (triggered after creation).'
+Description: 'CloudFormation IaC --- EC2 Instance with optional Route 53 DNS Records. The template contains Cloud-Init code that will pre-install AWS-CLI Tools, CFN-Bootstrap, CFN-Hup and the Puppet Agent together with some service scripts for additional functionality (triggered after creation).'
 
 ################################################################################
 #
@@ -97,11 +97,11 @@ Parameters:
   #=======================================
 
   NameSuffix:
-    Description: 'A string used to tell the resources created by different instances of this stack apart (examples: "author01" or "solr03").'
+    Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "search-prod").'
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "sites-prod").'
     Type: String
 
   #=======================================
@@ -154,8 +154,6 @@ Parameters:
   FeatureUptimeWindows:
     Description: 'A list consisting of two elements in the UNIX cron format, the first representing the start and the second the stop times. If set to "disabled", the instances will run 24/7 (example: "* 4 ? * MON-FRI *", "* 20 ? * MON-FRI *").'
     Type: CommaDelimitedList
-    # TODO: Update for the new format of having either two cron time-strings or the word "disabled"
-    #   AllowedPattern: '((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})?'
     Default: 'disabled'
 
   #=======================================
@@ -280,7 +278,7 @@ Conditions:
   # Naming
   #----------------------------
 
-  # Whether a Hostname has been explicitly provided or now
+  # Whether HostName has been explicitly provided or not
   HasHostName: !Not
     - !Equals [ !Ref HostName, '' ]
 
@@ -358,7 +356,6 @@ Conditions:
 ################################################################################
 
 Resources:
-
   #=======================================
   # Instance
   #=======================================

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'VPC peering connection between two virtual private clouds (VPCs). This template also sets up proper routing between the two VPCs if the corresponding Route Tables (up to three, e.g. for Subnets in three different Regions) are provided.'
+Description: 'CloudFormation IaC --- VPC Peering Connection between two virtual private clouds (VPCs). This template also sets up proper routing between the two VPCs if the corresponding Route Tables (up to three, e.g. for Subnets in three different Regions) are provided.'
 
 ################################################################################
 #
@@ -56,11 +56,11 @@ Parameters:
   #=======================================
 
   PeerVpcName:
-    Description: 'The name of the VPC with which you are creating the peering connection.'
+    Description: 'The name of the VPC that is accepting the peering (the accepter VPC).'
     Type: String
 
   RequestingVpcName:
-    Description: 'The name of the VPC that is requesting a peering connection.'
+    Description: 'The name of the VPC that is requesting the peering (the requester VPC).'
     Type: String
 
   #=======================================
@@ -68,20 +68,20 @@ Parameters:
   #=======================================
 
   RequestingVpcCidr:
-    Description: 'Private IP class of the requesting VPC (e.g. 10.31.0.0/22).'
+    Description: 'Private IP class of the requester VPC (example: "10.31.0.0/22").'
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
 
   RequestingVpcId:
-    Description: 'The ID of the VPC that is requesting a peering connection.'
+    Description: 'The ID of the requester VPC.'
     Type: AWS::EC2::VPC::Id
 
   RequestingVpcRouteTables:
-    Description: 'The IDs of the Route Tables of the requesting VPC where routes to the peering connection will be added. Must be as many items as specified in "RequestingVpcRouteTablesCount".'
+    Description: 'The IDs of Route Tables in the requester VPC where Routes to the Peering Connection should be added. Must be as many items as specified in "RequestingVpcRouteTablesCount".'
     Type: CommaDelimitedList
 
   RequestingVpcRouteTablesCount:
-    Description: 'The number of Route Tables provided for the requesting VPC.'
+    Description: 'The number of Route Tables provided for the requester VPC.'
     Type: Number
     AllowedValues: [ 1, 2, 3 ]
 
@@ -90,20 +90,20 @@ Parameters:
   #=======================================
 
   PeerVpcCidr:
-    Description: 'Private IP class of the peer VPC (e.g. 10.31.0.0/22).'
+    Description: 'Private IP class of the accepter VPC (example: "10.31.0.0/22").'
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
 
   PeerVpcId:
-    Description: 'The ID of the VPC with which you are creating the peering connection.'
+    Description: 'The ID of the accepter VPC.'
     Type: AWS::EC2::VPC::Id
 
   PeerVpcRouteTables:
-    Description: 'The IDs of the route tables of the peer VPC where routes to the peering connection will be added. Must be as many items as specified in "PeerVpcRouteTablesCount".'
+    Description: 'The IDs of Route Tables in the accepter VPC where Routes to the Peering Connection should be added. Only used if the accepter VPC is in the same account; must be as many items as specified in "PeerVpcRouteTablesCount".'
     Type: CommaDelimitedList
 
   PeerVpcRouteTablesCount:
-    Description: 'The number of Route Tables provided for the peer VPC.'
+    Description: 'The number of Route Tables provided for the accepter VPC.'
     Type: Number
     AllowedValues: [ 1, 2, 3 ]
 
@@ -119,27 +119,27 @@ Parameters:
 
 Conditions:
   #----------------------------
-  # Requesting VPC
+  # Requester VPC
   #----------------------------
 
-  # ...
+  # Create Route #2 if enough Route Tables have been provided
   CreateReqRoute2: !Or
     - !Equals [ !Ref RequestingVpcRouteTablesCount, 2 ]
     - !Condition CreateReqRoute3
 
-  # ...
+  # Create Route #3 if enough Route Tables have been provided
   CreateReqRoute3: !Equals [ !Ref RequestingVpcRouteTablesCount, 3 ]
 
   #----------------------------
-  # Peer VPC
+  # Accepter VPC
   #----------------------------
 
-  # ...
+  # Create Route #2 if the accepter VPC is in the same account and enough Route Tables have been provided
   CreatePeerRoute2: !Or
     - !Equals [ !Ref PeerVpcRouteTablesCount, 2 ]
     - !Condition CreatePeerRoute3
 
-  # ...
+  # Create Route #3 if the accepter VPC is in the same account and enough Route Tables have been provided
   CreatePeerRoute3: !Equals [ !Ref PeerVpcRouteTablesCount, 3 ]
 
 
@@ -167,7 +167,7 @@ Resources:
       VpcId: !Ref RequestingVpcId
 
   #----------------------------
-  # Add Routes in the requesting VPC
+  # Add Routes in the requester VPC
   #----------------------------
 
   ReqRoute1:
@@ -194,7 +194,7 @@ Resources:
       VpcPeeringConnectionId: !Ref VpcPeeringConnection
 
   #----------------------------
-  # Add Routes in the peer VPC
+  # Add Routes in the accepter VPC
   #----------------------------
 
   PeerRoute1:

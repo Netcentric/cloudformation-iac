@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Set of 'AWS::EC2::Route' of 'AWS::EC2::VPNConnectionRoute' routes."
+Description: "CloudFormation IaC --- Set of 'AWS::EC2::Route' or 'AWS::EC2::VPNConnectionRoute' routes."
 
 ################################################################################
 #
@@ -50,7 +50,7 @@ Metadata:
 Parameters:
 
   DestinationCidrBlocks:
-    Description: "A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5)."
+    Description: "A list of CIDR blocks that is associated with the local Subnet of the customer network (max: 5)."
     Type: CommaDelimitedList
 
   DestinationCidrBlocksCount:
@@ -59,16 +59,16 @@ Parameters:
     AllowedValues: [ 1, 2, 3, 4, 5 ]
 
   RouteTableId:
-    Description: "The ID of the route table. The routing table must be associated with the same VPC that the virtual private gateway is attached to."
+    Description: "The ID of a Route Table (only required if using a Transit Gateway)."
     Type: String
 
   TransitGatewayId:
-    Description: "The ID of a transit gateway."
+    Description: "The ID of a Transit Gateway."
     Type: String
     Default: ""
 
   VpnConnectionId:
-    Description: "The ID of the VPN connection."
+    Description: "The ID of the VPN Connection."
     Type: String
     Default: ""
 

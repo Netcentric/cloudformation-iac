@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'A private MySQL engine RDS Instance.'
+Description: 'CloudFormation IaC --- A private MySQL engine RDS Instance.'
 
 ################################################################################
 #
@@ -67,7 +67,7 @@ Parameters:
   #=======================================
 
   NameSuffix:
-    Description: 'A string used to tell the different RDS Instances apart (examples: "1" or "2").'
+    Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
   RootStackName:

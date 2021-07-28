@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Setup utilizing SNS and Lambda to enable the use of Hosted Zones in this account by CFTs run in other accounts"
+Description: "CloudFormation IaC --- Setup utilizing SNS and Lambda to enable the use of Hosted Zones in this account by CFTs run in other accounts"
 
 ################################################################################
 #
@@ -57,7 +57,7 @@ Parameters:
   #----------------------------
 
   NameSuffix:
-    Description: "A string used to tell the different Instances apart (examples: 'sites' or 'prod')."
+    Description: "A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number)."
     Type: String
 
   #----------------------------
@@ -65,7 +65,7 @@ Parameters:
   #----------------------------
 
   AuthorizedAccounts:
-    Description: "A list of accounts that are allowed to create Route 53 Records (e.g. '1234567890, 987654321098')."
+    Description: "A list of AWS accounts that are allowed to create Route 53 Records (e.g. '1234567890, 987654321098')."
     Type: CommaDelimitedList
 
   HostedZone:

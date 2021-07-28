@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Private Route 53 DNS Record for a given EC2 Instance'
+Description: 'CloudFormation IaC --- Private Route 53 DNS Record for a given EC2 Instance'
 
 ################################################################################
 #
@@ -49,7 +49,7 @@ Parameters:
   #=======================================
 
   DnsName:
-    Description: 'The part of the domain that identifies the Instance (must not include the Hosted Zones name; examples: "assets-dev-author-1" or "search-prod-solr-3").'
+    Description: 'The part of the domain that identifies the Instance (must not include the Hosted Zones name; examples: "assets-dev-author-1" or "sites-prod-publish-3").'
     Type: String
 
   HostedZoneName:

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'EC2 Application Load Balancer with optionally HTTP and/or HTTPS'
+Description: 'CloudFormation IaC --- EC2 Application Load Balancer with optionally HTTP and/or HTTPS'
 
 ################################################################################
 #
@@ -114,11 +114,11 @@ Parameters:
   #=======================================
 
   NameSuffix:
-    Description: 'A string used to tell the different ALBs apart (examples: "author" or "solr").'
+    Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
     Type: String
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "search-prod").'
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "sites-prod").'
     Type: String
 
   #=======================================
@@ -143,7 +143,7 @@ Parameters:
     Default: 'internet-facing'
 
   SecurityGroupIds:
-    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Instance.'
+    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Load Balancer.'
     Type: CommaDelimitedList
 
   StickinessDuration:
@@ -202,7 +202,7 @@ Parameters:
     Default: 15
 
   HealthCheckPath:
-    Description: 'The HTTP codes that a healthy target must use when responding to a health check (examples: "200" or "200-399").'
+    Description: 'The destination for health checks on the targets.'
     Type: String
     Default: '/'
 
