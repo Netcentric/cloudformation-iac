@@ -40,8 +40,8 @@ Metadata:
         Parameters:
           - AvailabilityZone
           - HostName
+          - IamInstanceProfile
           - ImageId
-          - InstanceProfile
           - InstanceType
           - RootKeyName
           - SecurityGroupIds
@@ -117,14 +117,14 @@ Parameters:
     Type: String
     Default: ''
 
+  IamInstanceProfile:
+    Description: 'The ARN of an IAM Instance Profile that is used to grant permissions to this EC2 Instance.'
+    Type: String
+    Default: ''
+
   ImageId:
     Description: 'The unique ID of the Amazon Machine Image (AMI) the Instance will be created from.'
     Type: AWS::EC2::Image::Id
-
-  InstanceProfile:
-    Description: 'The ARN of an IAM Instance Profile that is used to grant this instance permissions, e.g. to register against the configuration manager (Chef/Puppet).'
-    Type: String
-    Default: ''
 
   InstanceType:
     Description: 'The instance type (examples: "t3a.micro" or "m5.xlarge").'
@@ -297,8 +297,8 @@ Conditions:
       - 'disabled'
 
   # Whether an IAM Instance Profile has been provided or not
-  HasInstanceProfile: !Not
-    - !Equals [ !Ref InstanceProfile, '' ]
+  HasIamInstanceProfile: !Not
+    - !Equals [ !Ref IamInstanceProfile, '' ]
 
   #----------------------------
   # Network
@@ -365,9 +365,9 @@ Resources:
     Properties:
       AvailabilityZone: !Ref AvailabilityZone
       IamInstanceProfile: !If
-          - HasInstanceProfile
-          - !Ref InstanceProfile
-          - !Ref AWS::NoValue
+        - HasIamInstanceProfile
+        - !Ref IamInstanceProfile
+        - !Ref AWS::NoValue
       ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
       KeyName: !Ref RootKeyName

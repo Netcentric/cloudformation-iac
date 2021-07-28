@@ -34,7 +34,7 @@ Metadata:
           default: 'Host Group configuration'
         Parameters:
           - AvailabilityZone
-          - InstanceProfile
+          - IamInstanceProfile
           - RootKeyName
           - SubnetId
       - Label:
@@ -128,7 +128,7 @@ Parameters:
     Description: 'The Availability Zone in which the Instances and their Volumes will be placed.'
     Type: AWS::EC2::AvailabilityZone::Name
 
-  InstanceProfile:
+  IamInstanceProfile:
     Description: 'The ARN of an IAM Instance Profile that is used to grant permissions to the EC2 Instances of this host group.'
     Type: String
     Default: ''
@@ -435,8 +435,8 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref AuthorImageId
-        InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref AuthorInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref AuthorSecurityGroupIds ]
@@ -491,8 +491,8 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref AuthorDispatcherImageId
-        InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref AuthorDispatcherInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref AuthorDispatcherSecurityGroupIds ]
@@ -536,8 +536,8 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref PublishImageId
-        InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref PublishInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref PublishSecurityGroupIds ]
@@ -592,8 +592,8 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref PublishDispatcherImageId
-        InstanceProfile: !Ref InstanceProfile
         InstanceType: !Ref PublishDispatcherInstanceType
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ',', !Ref PublishDispatcherSecurityGroupIds ]
