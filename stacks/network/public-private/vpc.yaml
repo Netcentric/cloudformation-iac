@@ -282,7 +282,7 @@ Resources:
 
   # Subnets in Availability Zone 1
   Az1:
-    DependsOn: [ InternetGateway, VpcInternetGatewayAttachment ]
+    DependsOn: [ InternetGateway, InternetGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: 'subnet.yaml'
@@ -304,7 +304,7 @@ Resources:
   # Subnets in Availability Zone 2
   Az2:
     Condition: UseAz2
-    DependsOn: [ InternetGateway, VpcInternetGatewayAttachment ]
+    DependsOn: [ InternetGateway, InternetGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: 'subnet.yaml'
@@ -326,7 +326,7 @@ Resources:
   # Subnets in Availability Zone 3
   Az3:
     Condition: UseAz3
-    DependsOn: [ InternetGateway, VpcInternetGatewayAttachment ]
+    DependsOn: [ InternetGateway, InternetGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: 'subnet.yaml'
@@ -357,6 +357,13 @@ Resources:
         - Key: Name
           Value: !Sub '${RootStackName}-igw'
 
+  # Connect the VPC with the internet gateway (WWW)
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
   InternetGatewayRoute:
     Type: AWS::EC2::Route
     Properties:
@@ -370,13 +377,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${RootStackName}-rt-public'
-      VpcId: !Ref Vpc
-
-  # Connect the VPC with the internet gateway (WWW)
-  VpcInternetGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref Vpc
 
   #=======================================
@@ -457,25 +457,25 @@ Resources:
   #=======================================
 
   # Attached to all instances of the VPC
-  SecurityGroupVpc:
+  SecurityGroupDmz:
     Condition: EnableDmz
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: !Sub 'Rules for connections from and to all Instances in VPC ${RootStackName}'
       Tags:
         - Key: 'Name'
-          Value: !Sub '${RootStackName}-sg-vpc'
+          Value: !Sub '${RootStackName}-sg-dmz-vpc'
       VpcId: !Ref Vpc
 
   # If a VOC wide DMZ is enabled, allow incoming traffic from this SG -> All instances can communicate with all instances attached to the same SG
-  SecurityGroupVpcIngress:
+  SecurityGroupDmzIngress:
     Condition: EnableDmz
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: 'All Instances (DMZ)'
-      GroupId: !Ref SecurityGroupVpc
+      GroupId: !Ref SecurityGroupDmz
       IpProtocol: '-1'
-      SourceSecurityGroupId: !Ref SecurityGroupVpc
+      SourceSecurityGroupId: !Ref SecurityGroupDmz
 
 
 ################################################################################
@@ -493,10 +493,10 @@ Outputs:
     Description: 'The ID of the VPC.'
     Value: !Ref Vpc
 
-  SecurityGroupVpc:
+  SecurityGroupDmz:
     Condition: EnableDmz
     Description: 'The ID of SecurityGroup that can be used to create a VPC wide DMZ.'
-    Value: !Ref SecurityGroupVpc
+    Value: !Ref SecurityGroupDmz
 
   PublicRouteTable:
     Description: 'PublicRouteTable'
