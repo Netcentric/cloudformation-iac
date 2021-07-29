@@ -73,8 +73,8 @@ Parameters:
   InternetAccess:
     Description: 'Indicates whether internet access should be possible for Instances in the private subnets.'
     Type: String
-    AllowedValues: [ 'disable', 'enable' ]
-    Default: 'enable'
+    AllowedValues: [ 'disabled', 'enabled' ]
+    Default: 'enabled'
 
   PrivateSubnetCidr:
     Description: 'Private Subnet IP class (must be a valid subclass of VPC, e.g. 10.31.1.0/24).'
@@ -104,7 +104,7 @@ Parameters:
 
 Conditions:
   # If access to the internet should be disabled, we should do this
-  EnableInternetAccess: !Equals [ !Ref InternetAccess, 'enable' ]
+  EnableInternetAccess: !Equals [ !Ref InternetAccess, 'enabled' ]
 
 
 ################################################################################

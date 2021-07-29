@@ -90,8 +90,8 @@ Parameters:
   InternetAccess:
     Description: 'Indicates whether internet access should be possible for Instances in the private Subnets.'
     Type: String
-    AllowedValues: [ 'disable', 'enable' ]
-    Default: 'enable'
+    AllowedValues: [ 'disabled', 'enabled' ]
+    Default: 'enabled'
 
   VpcCidr:
     Description: 'Private IP class for VPC (e.g. 10.31.0.0/22).'
@@ -104,8 +104,8 @@ Parameters:
   VpcWideDmz:
     Description: 'Indicates whether a VPC wide DMZ should be created.'
     Type: String
-    AllowedValues: [ 'disable', 'enable' ]
-    Default: 'disable'
+    AllowedValues: [ 'disabled', 'enabled' ]
+    Default: 'disabled'
 
   #=======================================
   # Network configuration - Availability Zone 1
@@ -246,7 +246,7 @@ Conditions:
   #----------------------------
 
   # If the VPC wide DMZ should be enabled, we will do so
-  EnableDmz: !Equals [ !Ref VpcWideDmz, 'enable' ]
+  EnableDmz: !Equals [ !Ref VpcWideDmz, 'enabled' ]
 
 
 ################################################################################
