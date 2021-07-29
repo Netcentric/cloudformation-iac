@@ -55,7 +55,7 @@ Parameters:
     Type: String
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "infra" or "nonprod").'
+    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "prod" or "nonprod").'
     Type: String
 
   #=======================================
