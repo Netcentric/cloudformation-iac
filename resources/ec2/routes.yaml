@@ -109,11 +109,9 @@ Conditions:
   # Transit Gateway Routes
   #----------------------------
 
-  UseTransitGateway: !Not
-      - !Equals [ !Ref TransitGatewayId, "" ]
-
   # When using a Transit Gateway, we need to create "AWS::EC2::Route"
-  CreateRouteTableRoutes: !Condition UseTransitGateway
+  CreateRouteTableRoutes: !Not
+      - !Equals [ !Ref TransitGatewayId, "" ]
 
   # Create Route Table Route 2 if two or more routes have been provided
   CreateRouteTableRoute2: !And
@@ -184,10 +182,7 @@ Resources:
     Properties:
       DestinationCidrBlock: !Select [ "0", !Ref DestinationCidrBlocks ]
       RouteTableId: !Ref RouteTableId
-      TransitGatewayId: !If
-        - UseTransitGateway
-        - !Ref TransitGatewayId
-        - !Ref AWS::NoValue
+      TransitGatewayId: !Ref TransitGatewayId
 
   Route2:
     Condition: CreateRouteTableRoute2
@@ -195,10 +190,7 @@ Resources:
     Properties:
       DestinationCidrBlock: !Select [ "1", !Ref DestinationCidrBlocks ]
       RouteTableId: !Ref RouteTableId
-      TransitGatewayId: !If
-        - UseTransitGateway
-        - !Ref TransitGatewayId
-        - !Ref AWS::NoValue
+      TransitGatewayId: !Ref TransitGatewayId
 
   Route3:
     Condition: CreateRouteTableRoute3
@@ -206,10 +198,7 @@ Resources:
     Properties:
       DestinationCidrBlock: !Select [ "2", !Ref DestinationCidrBlocks ]
       RouteTableId: !Ref RouteTableId
-      TransitGatewayId: !If
-        - UseTransitGateway
-        - !Ref TransitGatewayId
-        - !Ref AWS::NoValue
+      TransitGatewayId: !Ref TransitGatewayId
 
   Route4:
     Condition: CreateRouteTableRoute4
@@ -217,10 +206,7 @@ Resources:
     Properties:
       DestinationCidrBlock: !Select [ "3", !Ref DestinationCidrBlocks ]
       RouteTableId: !Ref RouteTableId
-      TransitGatewayId: !If
-        - UseTransitGateway
-        - !Ref TransitGatewayId
-        - !Ref AWS::NoValue
+      TransitGatewayId: !Ref TransitGatewayId
 
   Route5:
     Condition: CreateRouteTableRoute5
@@ -228,10 +214,7 @@ Resources:
     Properties:
       DestinationCidrBlock: !Select [ "4", !Ref DestinationCidrBlocks ]
       RouteTableId: !Ref RouteTableId
-      TransitGatewayId: !If
-        - UseTransitGateway
-        - !Ref TransitGatewayId
-        - !Ref AWS::NoValue
+      TransitGatewayId: !Ref TransitGatewayId
 
   #----------------------------
   # VPN Gateway Routes
