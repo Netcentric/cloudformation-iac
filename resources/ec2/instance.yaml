@@ -1,12 +1,12 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation IaC --- EC2 Instance with optional Route 53 DNS Records. The template contains Cloud-Init code that will pre-install AWS-CLI Tools, CFN-Bootstrap, CFN-Hup and the Puppet Agent together with some service scripts for additional functionality (triggered after creation).'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- EC2 Instance with optional Route 53 DNS Records. The template contains Cloud-Init code that will pre-install AWS-CLI Tools, CFN-Bootstrap, CFN-Hup and the Puppet Agent together with some service scripts for additional functionality (triggered after creation)."
 
 ################################################################################
 #
 # Decision Trees:
 #
 #   DNS entries:
-#     HostedZoneName != ''
+#     HostedZoneName != ""
 #       true  -> Created
 #       false -> None [default]
 #
@@ -31,12 +31,12 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: 'Naming details'
+          default: "Naming details"
         Parameters:
           - Designation
           - RootStackName
       - Label:
-          default: 'Instance configuration'
+          default: "Instance configuration"
         Parameters:
           - AvailabilityZone
           - HostName
@@ -47,12 +47,12 @@ Metadata:
           - SecurityGroupIds
           - SubnetId
       - Label:
-          default: 'Additional features'
+          default: "Additional features"
         Parameters:
           - FeatureAutoSnapshot
           - FeatureUptimeWindows
       - Label:
-          default: '/opt (optional)'
+          default: "/opt (optional)"
         Parameters:
           - VolumeOptDeviceName
           - VolumeOptEncryption
@@ -60,7 +60,7 @@ Metadata:
           - VolumeOptSize
           - VolumeOptType
       - Label:
-          default: '/tmp (optional)'
+          default: "/tmp (optional)"
         Parameters:
           - VolumeTmpDeviceName
           - VolumeTmpEncryption
@@ -68,7 +68,7 @@ Metadata:
           - VolumeTmpSize
           - VolumeTmpType
       - Label:
-          default: '/var (optional)'
+          default: "/var (optional)"
         Parameters:
           - VolumeVarDeviceName
           - VolumeVarEncryption
@@ -76,7 +76,7 @@ Metadata:
           - VolumeVarSize
           - VolumeVarType
       - Label:
-          default: 'DNS Record configuration (optional)'
+          default: "DNS Record configuration (optional)"
         Parameters:
           - DnsServiceToken
           - HostedZoneName
@@ -97,11 +97,11 @@ Parameters:
   #=======================================
 
   Designation:
-    Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
+    Description: "A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number)."
     Type: String
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "sites-prod").'
+    Description: "The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: \"assets-dev\" or \"sites-prod\")."
     Type: String
 
   #=======================================
@@ -109,37 +109,37 @@ Parameters:
   #=======================================
 
   AvailabilityZone:
-    Description: 'The Availability Zone in which the Instance and its Volumes will be placed.'
+    Description: "The Availability Zone in which the Instance and its Volumes will be placed."
     Type: AWS::EC2::AvailabilityZone::Name
 
   HostName:
-    Description: 'The name that will be used for this host and, if created, its DNS name (example: "sites-dev1-author-1"; default: "${RootStackName}-${Designation}").'
+    Description: "The name that will be used for this host and, if created, its DNS name (example: \"sites-dev1-author-1\"; default: \"${RootStackName}-${Designation}\")."
     Type: String
-    Default: ''
+    Default: ""
 
   IamInstanceProfile:
-    Description: 'The ARN of an IAM Instance Profile that is used to grant permissions to this EC2 Instance.'
+    Description: "The ARN of an IAM Instance Profile that is used to grant permissions to this EC2 Instance."
     Type: String
-    Default: ''
+    Default: ""
 
   ImageId:
-    Description: 'The unique ID of the Amazon Machine Image (AMI) the Instance will be created from.'
+    Description: "The unique ID of the Amazon Machine Image (AMI) the Instance will be created from."
     Type: AWS::EC2::Image::Id
 
   InstanceType:
-    Description: 'The instance type (examples: "t3a.micro" or "m5.xlarge").'
+    Description: "The instance type (examples: \"t3a.micro\" or \"m5.xlarge\")."
     Type: String
 
   RootKeyName:
-    Description: 'The name of the Amazon EC2 key pair that will be used to access the Instance via SSH.'
+    Description: "The name of the Amazon EC2 key pair that will be used to access the Instance via SSH."
     Type: AWS::EC2::KeyPair::KeyName
 
   SecurityGroupIds:
-    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Instance.'
+    Description: "A list that contains the IDs for VPC Security Groups to assign to the Instance."
     Type: CommaDelimitedList
 
   SubnetId:
-    Description: 'The ID of the Subnet the Instance will be launched into.'
+    Description: "The ID of the Subnet the Instance will be launched into."
     Type: AWS::EC2::Subnet::Id
 
   #=======================================
@@ -147,121 +147,121 @@ Parameters:
   #=======================================
 
   FeatureAutoSnapshot:
-    Description: 'Whether EBS Volumes should be backed up automatically not. This feature can be enabled by specifying a ScheduleName that was used with the "automatic-snapshots" template (examples: "Daily").'
+    Description: "Whether EBS Volumes should be backed up automatically not. This feature can be enabled by specifying a ScheduleName that was used with the \"automatic-snapshots\" template (examples: \"Daily\")."
     Type: String
-    Default: 'disabled'
+    Default: "disabled"
 
   FeatureUptimeWindows:
-    Description: 'A list consisting of two elements in the UNIX cron format, the first representing the start and the second the stop times. If set to "disabled", the instances will run 24/7 (example: "* 4 ? * MON-FRI *", "* 20 ? * MON-FRI *").'
+    Description: "A list consisting of two elements in the UNIX cron format, the first representing the start and the second the stop times. If set to \"disabled\", the instances will run 24/7 (example: \"* 4 ? * MON-FRI *\", \"* 20 ? * MON-FRI *\")."
     Type: CommaDelimitedList
-    Default: 'disabled'
+    Default: "disabled"
 
   #=======================================
   # /opt (optional)
   #=======================================
 
   VolumeOptDeviceName:
-    Description: 'How the device will be exposed to the Instance (examples: "/dev/sdh" or "xvdf").'
+    Description: "How the device will be exposed to the Instance (examples: \"/dev/sdh\" or \"xvdf\")."
     Type: String
-    Default: 'xvdf'
+    Default: "xvdf"
 
   VolumeOptEncryption:
-    Description: 'Whether this Volumes should be encrypted or not.'
+    Description: "Whether this Volumes should be encrypted or not."
     Type: String
-    AllowedValues: [ 'false', 'true' ]
-    Default: 'false'
+    AllowedValues: [ "false", "true" ]
+    Default: "false"
 
   VolumeOptIops:
-    Description: 'The number of I/O operations per second (IOPs) that the Volume will support (only used if VolumeOptType is set to "io1", "io2" or "gp3").'
+    Description: "The number of I/O operations per second (IOPs) that the Volume will support (only used if VolumeOptType is set to \"io1\", \"io2\" or \"gp3\")."
     Type: Number
     Default: 0
 
   VolumeOptSize:
-    Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
+    Description: "The size of the Volume, in gibibytes (if this value is 0 the volume will not be created)."
     Type: Number
     Default: 0
 
   VolumeOptType:
-    Description: 'The Volume type (if you set the type to "io1" or "io2, you must also set the VolumeOptIops property).'
+    Description: "The Volume type (if you set the type to \"io1\" or \"io2\", you must also set the VolumeOptIops property)."
     Type: String
-    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
-    Default: 'gp3'
+    AllowedValues: [ "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: "gp3"
 
   #=======================================
   # /tmp (optional)
   #=======================================
 
   VolumeTmpDeviceName:
-    Description: 'How the device will be exposed to the Instance (examples: "/dev/sdh" or "xvdf").'
+    Description: "How the device will be exposed to the Instance (examples: \"/dev/sdh\" or \"xvdf\")."
     Type: String
-    Default: 'xvdg'
+    Default: "xvdg"
 
   VolumeTmpEncryption:
-    Description: 'Whether this Volumes should be encrypted or not.'
+    Description: "Whether this Volumes should be encrypted or not."
     Type: String
-    AllowedValues: [ 'false', 'true' ]
-    Default: 'false'
+    AllowedValues: [ "false", "true" ]
+    Default: "false"
 
   VolumeTmpIops:
-    Description: 'The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeTmpType is set to "io1", "io2" or "gp3").'
+    Description: "The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeTmpType is set to \"io1\", \"io2\" or \"gp3\")."
     Type: Number
     Default: 0
 
   VolumeTmpSize:
-    Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
+    Description: "The size of the Volume, in gibibytes (if this value is 0 the volume will not be created)."
     Type: Number
     Default: 0
 
   VolumeTmpType:
-    Description: 'The volume type (if you set the type to "io1" or "io2, you must also set the VolumeTmpIops property).'
+    Description: "The volume type (if you set the type to \"io1\" or \"io2\", you must also set the VolumeTmpIops property)."
     Type: String
-    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
-    Default: 'gp3'
+    AllowedValues: [ "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: "gp3"
 
   #=======================================
   # /var (optional)
   #=======================================
 
   VolumeVarDeviceName:
-    Description: 'How the device will be exposed to the Instance (examples: "/dev/sdh" or "xvdf").'
+    Description: "How the device will be exposed to the Instance (examples: \"/dev/sdh\" or \"xvdf\")."
     Type: String
-    Default: 'xvdh'
+    Default: "xvdh"
 
   VolumeVarEncryption:
-    Description: 'Whether this Volumes should be encrypted or not.'
+    Description: "Whether this Volumes should be encrypted or not."
     Type: String
-    AllowedValues: [ 'false', 'true' ]
-    Default: 'false'
+    AllowedValues: [ "false", "true" ]
+    Default: "false"
 
   VolumeVarIops:
-    Description: 'The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeVarType is set to "io1", "io2" or "gp3").'
+    Description: "The number of I/O operations per second (IOPS) that the Volume will support (only used if VolumeVarType is set to \"io1\", \"io2\" or \"gp3\")."
     Type: Number
     Default: 0
 
   VolumeVarSize:
-    Description: 'The size of the Volume, in gibibytes (if this value is 0 the volume will not be created).'
+    Description: "The size of the Volume, in gibibytes (if this value is 0 the volume will not be created)."
     Type: Number
     Default: 0
 
   VolumeVarType:
-    Description: 'The volume type (if you set the type to "io1" or "io2, you must also set the VolumeVarIops property).'
+    Description: "The volume type (if you set the type to \"io1\" or \"io2\", you must also set the VolumeVarIops property)."
     Type: String
-    AllowedValues: [ 'standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1' ]
-    Default: 'gp3'
+    AllowedValues: [ "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: "gp3"
 
   #=======================================
   # DNS Record configuration (optional)
   #=======================================
 
   DnsServiceToken:
-    Description: 'The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack).'
+    Description: "The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack)."
     Type: String
-    Default: ''
+    Default: ""
 
   HostedZoneName:
-    Description: 'The name of the domain for the Hosted Zone where the Record Sets should be added (if left empty, no DNS Record will be created; example: "my-project.example.com").'
+    Description: "The name of the domain for the Hosted Zone where the Record Sets should be added (if left empty, no DNS Record will be created; example: \"my-project.example.com\")."
     Type: String
-    Default: ''
+    Default: ""
 
 
 ################################################################################
@@ -280,7 +280,7 @@ Conditions:
 
   # Whether HostName has been explicitly provided or not
   HasHostName: !Not
-    - !Equals [ !Ref HostName, '' ]
+    - !Equals [ !Ref HostName, "" ]
 
   #----------------------------
   # Features
@@ -288,17 +288,17 @@ Conditions:
 
   # If the automatic snapshot scheduler is not configured, this feature will be disabled
   EnableAutoSnapshot: !Not
-    - !Equals [ !Ref FeatureAutoSnapshot, 'disabled' ]
+    - !Equals [ !Ref FeatureAutoSnapshot, "disabled" ]
 
   # If the uptime windows is not configured, this feature will be disabled (the element is a list, so we need to squash it for the comparison)
   EnableUptimeWindows: !Not
     - !Equals
-      - !Join [ '', !Ref FeatureUptimeWindows ]
-      - 'disabled'
+      - !Join [ "", !Ref FeatureUptimeWindows ]
+      - "disabled"
 
   # Whether an IAM Instance Profile has been provided or not
   HasIamInstanceProfile: !Not
-    - !Equals [ !Ref IamInstanceProfile, '' ]
+    - !Equals [ !Ref IamInstanceProfile, "" ]
 
   #----------------------------
   # Network
@@ -306,7 +306,7 @@ Conditions:
 
   # If no Hosted Zone was given, we won't create a DNS Record
   CreateDnsRecord: !Not
-    - !Equals [ !Ref HostedZoneName, '' ]
+    - !Equals [ !Ref HostedZoneName, "" ]
 
   #----------------------------
   # Storage
@@ -329,27 +329,27 @@ Conditions:
     - !Not
       - !Equals [ !Ref VolumeOptIops, 0 ]
     - !Or
-      - !Equals [ !Ref VolumeOptType, 'gp3' ]
-      - !Equals [ !Ref VolumeOptType, 'io1' ]
-      - !Equals [ !Ref VolumeOptType, 'io2' ]
+      - !Equals [ !Ref VolumeOptType, "gp3" ]
+      - !Equals [ !Ref VolumeOptType, "io1" ]
+      - !Equals [ !Ref VolumeOptType, "io2" ]
 
   # Whether the I/O performance can and should be set or not
   SetVolumeTmpIops: !And
     - !Not
       - !Equals [ !Ref VolumeTmpIops, 0 ]
     - !Or
-      - !Equals [ !Ref VolumeTmpType, 'gp3' ]
-      - !Equals [ !Ref VolumeTmpType, 'io1' ]
-      - !Equals [ !Ref VolumeTmpType, 'io2' ]
+      - !Equals [ !Ref VolumeTmpType, "gp3" ]
+      - !Equals [ !Ref VolumeTmpType, "io1" ]
+      - !Equals [ !Ref VolumeTmpType, "io2" ]
 
   # Whether the I/O performance can and should be set or not
   SetVolumeVarIops: !And
     - !Not
       - !Equals [ !Ref VolumeVarIops, 0 ]
     - !Or
-      - !Equals [ !Ref VolumeVarType, 'gp3' ]
-      - !Equals [ !Ref VolumeVarType, 'io1' ]
-      - !Equals [ !Ref VolumeVarType, 'io2' ]
+      - !Equals [ !Ref VolumeVarType, "gp3" ]
+      - !Equals [ !Ref VolumeVarType, "io1" ]
+      - !Equals [ !Ref VolumeVarType, "io2" ]
 
 
 ################################################################################
@@ -380,17 +380,17 @@ Resources:
       SecurityGroupIds: !Ref SecurityGroupIds
       SubnetId: !Ref SubnetId
       Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-instance-${Designation}'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-instance-${Designation}"
         - !If
           - EnableUptimeWindows
-          - Key: 'startTime'
-            Value: !Select [ '0', !Ref FeatureUptimeWindows ]
+          - Key: "startTime"
+            Value: !Select [ "0", !Ref FeatureUptimeWindows ]
           - !Ref AWS::NoValue
         - !If
           - EnableUptimeWindows
-          - Key: 'stopTime'
-            Value: !Select [ '1', !Ref FeatureUptimeWindows ]
+          - Key: "stopTime"
+            Value: !Select [ "1", !Ref FeatureUptimeWindows ]
           - !Ref AWS::NoValue
       Volumes:
         - !If
@@ -765,27 +765,27 @@ Resources:
         # Make sure the AWS CLI Tools are present
         EnsureAwsCli:
           sources:
-            /opt/aws: 'https://s3.amazonaws.com/aws-cli/awscli-bundle.zip'
+            /opt/aws: "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip"
           commands:
             0100_install_awscli:
               command: '/opt/aws/awscli-bundle/install --install-dir="/usr/local/aws" --bin-location="/usr/local/bin/aws"'
             # Fix: __main__.MultipleBundlesError: Multiple versions of the CLI were found in /opt/aws/awscli-bundle/packages. Please clear out this directory before proceeding.
             0200_cleanup:
-              command: 'rm -rf /opt/aws/awscli-bundle'
+              command: "rm -rf /opt/aws/awscli-bundle"
 
         # Make sure the AWS CloudFormation Helper Scripts are present
         # See: https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
         EnsureCfnBootstrap:
           commands:
             0100_yum_reinstall_cfn_bootstrap:
-              test: 'which yum && rpm -q aws-cfn-bootstrap'
-              command: 'yum reinstall --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm'
+              test: "which yum && rpm -q aws-cfn-bootstrap"
+              command: "yum reinstall --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm"
             0200_yum_install_cfn_bootstrap_centos:
-              test: 'which yum && ! rpm -q aws-cfn-bootstrap && test -f /etc/centos-release'
-              command: 'yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm'
+              test: "which yum && ! rpm -q aws-cfn-bootstrap && test -f /etc/centos-release"
+              command: "yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm"
             0300_yum_install_cfn_bootstrap_rhel:
-              test: 'which yum && ! rpm -q aws-cfn-bootstrap && test ! -f /etc/centos-release'
-              command: 'cd /tmp && wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz && easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz'
+              test: "which yum && ! rpm -q aws-cfn-bootstrap && test ! -f /etc/centos-release"
+              command: "cd /tmp && wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz && easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz"
 
         # Make sure the cfn-hup helper that detects changes in resource metadata and runs user-specified actions when a change is detected are present
         # See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-hup.html
@@ -824,7 +824,7 @@ Resources:
               command: "systemctl enable cfn-hup.service"
             0200_systemd_start_cfn_hup:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
-              command: 'systemctl start cfn-hup.service'
+              command: "systemctl start cfn-hup.service"
           services:
             sysvinit:
               cfn-hup:
@@ -837,7 +837,7 @@ Resources:
         # Is only started in initial run of cfn-init and sets a puppet installer cronjob
         InitializePuppet:
           files:
-            # Script to trigger the Puppet Master script in section 'BootstrapPuppet' sets up a cronjob that triggers the puppet script install.
+            # Script to trigger the Puppet Master script in section "BootstrapPuppet" sets up a cronjob that triggers the puppet script install.
             # Necessary workaround due to network delay during the first setup of an ec2-instance
             /etc/cron.d/bootstrap-puppet-starter:
               content: |
@@ -857,27 +857,27 @@ Resources:
         OptionalReboot:
           commands:
             0100_reboot:
-              test: 'test -f /tmp/.reboot-required'
-              command: 'rm --force /tmp/.reboot-required; reboot'
+              test: "test -f /tmp/.reboot-required"
+              command: "rm --force /tmp/.reboot-required; reboot"
 
         # Set the host name to something more verbose
         SetHostname:
           commands:
             0100_sysconfig:
               command: !Sub
-                - 'echo HOSTNAME=${ActualHostName} >> /etc/sysconfig/network'
+                - "echo HOSTNAME=${ActualHostName} >> /etc/sysconfig/network"
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
-                    - !Sub '${RootStackName}-${Designation}'
+                    - !Sub "${RootStackName}-${Designation}"
             0200_systemd:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: !Sub
-                - 'hostnamectl set-hostname ${ActualHostName}'
+                - "hostnamectl set-hostname ${ActualHostName}"
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
-                    - !Sub '${RootStackName}-${Designation}'
+                    - !Sub "${RootStackName}-${Designation}"
 
   #=======================================
   # Volumes
@@ -887,7 +887,7 @@ Resources:
   VolumeOpt:
     Condition: CreateVolumeOpt
     Type: AWS::EC2::Volume
-    DeletionPolicy: 'Delete'
+    DeletionPolicy: "Delete"
     Properties:
       AvailabilityZone: !Ref AvailabilityZone
       Encrypted: !Ref VolumeOptEncryption
@@ -897,11 +897,11 @@ Resources:
         - !Ref AWS::NoValue
       Size: !Ref VolumeOptSize
       Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-volume-${Designation}-opt'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-volume-${Designation}-opt"
         - !If
           - EnableAutoSnapshot
-          - Key: 'AutomaticSnapshots'
+          - Key: "AutomaticSnapshots"
             Value: !Ref FeatureAutoSnapshot
           - !Ref AWS::NoValue
       VolumeType: !Ref VolumeOptType
@@ -910,7 +910,7 @@ Resources:
   VolumeTmp:
     Condition: CreateVolumeTmp
     Type: AWS::EC2::Volume
-    DeletionPolicy: 'Delete'
+    DeletionPolicy: "Delete"
     Properties:
       AvailabilityZone: !Ref AvailabilityZone
       Encrypted: !Ref VolumeTmpEncryption
@@ -920,11 +920,11 @@ Resources:
         - !Ref AWS::NoValue
       Size: !Ref VolumeTmpSize
       Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-volume-${Designation}-tmp'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-volume-${Designation}-tmp"
         - !If
           - EnableAutoSnapshot
-          - Key: 'AutomaticSnapshots'
+          - Key: "AutomaticSnapshots"
             Value: !Ref FeatureAutoSnapshot
           - !Ref AWS::NoValue
       VolumeType: !Ref VolumeTmpType
@@ -933,7 +933,7 @@ Resources:
   VolumeVar:
     Condition: CreateVolumeVar
     Type: AWS::EC2::Volume
-    DeletionPolicy: 'Delete'
+    DeletionPolicy: "Delete"
     Properties:
       AvailabilityZone: !Ref AvailabilityZone
       Encrypted: !Ref VolumeVarEncryption
@@ -943,11 +943,11 @@ Resources:
         - !Ref AWS::NoValue
       Size: !Ref VolumeVarSize
       Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-volume-${Designation}-var'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-volume-${Designation}-var"
         - !If
           - EnableAutoSnapshot
-          - Key: 'AutomaticSnapshots'
+          - Key: "AutomaticSnapshots"
             Value: !Ref FeatureAutoSnapshot
           - !Ref AWS::NoValue
       VolumeType: !Ref VolumeVarType
@@ -961,14 +961,14 @@ Resources:
     Condition: CreateDnsRecord
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: '../r53/dns-records.yaml'
+      TemplateURL: "../r53/dns-records.yaml"
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub '${RootStackName}-${Designation}'
+        DnsName: !Sub "${RootStackName}-${Designation}"
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt Instance.PrivateIp
-        Type: 'A'
+        Type: "A"
 
         # Remote DNS Record configuration (optional)
         #
@@ -987,5 +987,5 @@ Resources:
 Outputs:
 
   InstanceId:
-    Description: 'The ID of the created Instance.'
+    Description: "The ID of the created Instance."
     Value: !Ref Instance

@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation IaC --- VPC Peering Connection between two virtual private clouds (VPCs). This template also sets up proper routing between the two VPCs if the corresponding Route Tables (up to three, e.g. for Subnets in three different Regions) are provided.'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- VPC Peering Connection between two virtual private clouds (VPCs). This template also sets up proper routing between the two VPCs if the corresponding Route Tables (up to three, e.g. for Subnets in three different Regions) are provided."
 
 ################################################################################
 #
@@ -21,19 +21,19 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: 'Naming details'
+          default: "Naming details"
         Parameters:
           - PeerVpcName
           - RequestingVpcName
       - Label:
-          default: 'Requesting VPC'
+          default: "Requesting VPC"
         Parameters:
           - RequestingVpcCidr
           - RequestingVpcId
           - RequestingVpcRouteTables
           - RequestingVpcRouteTablesCount
       - Label:
-          default: 'Peer VPC'
+          default: "Peer VPC"
         Parameters:
           - PeerVpcCidr
           - PeerVpcId
@@ -56,11 +56,11 @@ Parameters:
   #=======================================
 
   PeerVpcName:
-    Description: 'The name of the VPC that is accepting the peering (the accepter VPC).'
+    Description: "The name of the VPC that is accepting the peering (the accepter VPC)."
     Type: String
 
   RequestingVpcName:
-    Description: 'The name of the VPC that is requesting the peering (the requester VPC).'
+    Description: "The name of the VPC that is requesting the peering (the requester VPC)."
     Type: String
 
   #=======================================
@@ -68,20 +68,20 @@ Parameters:
   #=======================================
 
   RequestingVpcCidr:
-    Description: 'Private IP class of the requester VPC (example: "10.31.0.0/22").'
+    Description: "Private IP class of the requester VPC (example: \"10.31.0.0/22\")."
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
 
   RequestingVpcId:
-    Description: 'The ID of the requester VPC.'
+    Description: "The ID of the requester VPC."
     Type: AWS::EC2::VPC::Id
 
   RequestingVpcRouteTables:
-    Description: 'The IDs of Route Tables in the requester VPC where Routes to the Peering Connection should be added. Must be as many items as specified in "RequestingVpcRouteTablesCount".'
+    Description: "The IDs of Route Tables in the requester VPC where Routes to the Peering Connection should be added. Must be as many items as specified in \"RequestingVpcRouteTablesCount\"."
     Type: CommaDelimitedList
 
   RequestingVpcRouteTablesCount:
-    Description: 'The number of Route Tables provided for the requester VPC.'
+    Description: "The number of Route Tables provided for the requester VPC."
     Type: Number
     AllowedValues: [ 1, 2, 3 ]
 
@@ -90,20 +90,20 @@ Parameters:
   #=======================================
 
   PeerVpcCidr:
-    Description: 'Private IP class of the accepter VPC (example: "10.31.0.0/22").'
+    Description: "Private IP class of the accepter VPC (example: \"10.31.0.0/22\")."
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
 
   PeerVpcId:
-    Description: 'The ID of the accepter VPC.'
+    Description: "The ID of the accepter VPC."
     Type: AWS::EC2::VPC::Id
 
   PeerVpcRouteTables:
-    Description: 'The IDs of Route Tables in the accepter VPC where Routes to the Peering Connection should be added. Only used if the accepter VPC is in the same account; must be as many items as specified in "PeerVpcRouteTablesCount".'
+    Description: "The IDs of Route Tables in the accepter VPC where Routes to the Peering Connection should be added. Only used if the accepter VPC is in the same account; must be as many items as specified in \"PeerVpcRouteTablesCount\"."
     Type: CommaDelimitedList
 
   PeerVpcRouteTablesCount:
-    Description: 'The number of Route Tables provided for the accepter VPC.'
+    Description: "The number of Route Tables provided for the accepter VPC."
     Type: Number
     AllowedValues: [ 1, 2, 3 ]
 
@@ -162,8 +162,8 @@ Resources:
     Properties:
       PeerVpcId: !Ref PeerVpcId
       Tags:
-        - Key: 'Name'
-          Value: !Sub '${RequestingVpcName} <-> ${PeerVpcName}'
+        - Key: "Name"
+          Value: !Sub "${RequestingVpcName} <-> ${PeerVpcName}"
       VpcId: !Ref RequestingVpcId
 
   #----------------------------
@@ -174,7 +174,7 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: !Ref PeerVpcCidr
-      RouteTableId: !Select [ '0', !Ref RequestingVpcRouteTables ]
+      RouteTableId: !Select [ "0", !Ref RequestingVpcRouteTables ]
       VpcPeeringConnectionId: !Ref VpcPeeringConnection
 
   ReqRoute2:
@@ -182,7 +182,7 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: !Ref PeerVpcCidr
-      RouteTableId: !Select [ '1', !Ref RequestingVpcRouteTables ]
+      RouteTableId: !Select [ "1", !Ref RequestingVpcRouteTables ]
       VpcPeeringConnectionId: !Ref VpcPeeringConnection
 
   ReqRoute3:
@@ -190,7 +190,7 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: !Ref PeerVpcCidr
-      RouteTableId: !Select [ '2', !Ref RequestingVpcRouteTables ]
+      RouteTableId: !Select [ "2", !Ref RequestingVpcRouteTables ]
       VpcPeeringConnectionId: !Ref VpcPeeringConnection
 
   #----------------------------
@@ -201,7 +201,7 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: !Ref RequestingVpcCidr
-      RouteTableId: !Select [ '0', !Ref PeerVpcRouteTables ]
+      RouteTableId: !Select [ "0", !Ref PeerVpcRouteTables ]
       VpcPeeringConnectionId: !Ref VpcPeeringConnection
 
   PeerRoute2:
@@ -209,7 +209,7 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: !Ref RequestingVpcCidr
-      RouteTableId: !Select [ '1', !Ref PeerVpcRouteTables ]
+      RouteTableId: !Select [ "1", !Ref PeerVpcRouteTables ]
       VpcPeeringConnectionId: !Ref VpcPeeringConnection
 
   PeerRoute3:
@@ -217,5 +217,5 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: !Ref RequestingVpcCidr
-      RouteTableId: !Select [ '2', !Ref PeerVpcRouteTables ]
+      RouteTableId: !Select [ "2", !Ref PeerVpcRouteTables ]
       VpcPeeringConnectionId: !Ref VpcPeeringConnection

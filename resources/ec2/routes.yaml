@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "CloudFormation IaC --- Set of 'AWS::EC2::Route' or 'AWS::EC2::VPNConnectionRoute' routes."
+Description: "CloudFormation IaC --- Set of \"AWS::EC2::Route\" or \"AWS::EC2::VPNConnectionRoute\" routes."
 
 ################################################################################
 #
@@ -29,7 +29,7 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: 'Route configuration'
+          default: "Route configuration"
         Parameters:
           - DestinationCidrBlocks
           - DestinationCidrBlocksCount

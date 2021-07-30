@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation IaC --- Infrastructure for automatic, schedule based shutdown of EC2 instances'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- Infrastructure for automatic, schedule based shutdown of EC2 instances"
 
 ################################################################################
 # EC2 automated shutdown / startup
@@ -206,11 +206,11 @@ Resources:
             });
 
           };
-      Description: 'EC2 Scheduler Lambda function for automatically starting and stopping EC2 instances.'
-      Handler: 'index.handler'
+      Description: "EC2 Scheduler Lambda function for automatically starting and stopping EC2 instances."
+      Handler: "index.handler"
       Role: !GetAtt EC2SchedulerRole.Arn
-      Runtime: 'nodejs10.x'
-      Timeout: '300'
+      Runtime: "nodejs10.x"
+      Timeout: 300
 
   CloudwatchEvent:
     Type: AWS::Events::Rule
@@ -218,8 +218,8 @@ Resources:
     Properties:
       Description: "Rule to trigger EC2Scheduler function on a schedule"
       ScheduleExpression: "cron(0-05 3,4,19,21 ? * MON-FRI *)"
-      State: 'ENABLED'
+      State: "ENABLED"
       Targets:
         -
           Arn: !GetAtt LambdaFunction.Arn
-          Id: 'TargetFunctionV1'
+          Id: "TargetFunctionV1"

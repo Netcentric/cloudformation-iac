@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation IaC --- A public (accessible from the internet) and a private (accessible only via VPN) Subnet'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- A public (accessible from the internet) and a private (accessible only via VPN) Subnet"
 
 ################################################################################
 #
@@ -21,12 +21,12 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: 'Naming details'
+          default: "Naming details"
         Parameters:
           - Designation
           - RootStackName
       - Label:
-          default: 'Subnet configuration'
+          default: "Subnet configuration"
         Parameters:
           - AvailabilityZone
           - IgwRouteTable
@@ -51,11 +51,11 @@ Parameters:
   #=======================================
 
   Designation:
-    Description: 'A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number).'
+    Description: "A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number)."
     Type: String
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "prod" or "nonprod").'
+    Description: "The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: \"prod\" or \"nonprod\")."
     Type: String
 
   #=======================================
@@ -63,33 +63,33 @@ Parameters:
   #=======================================
 
   AvailabilityZone:
-    Description: 'AvailabilityZone the subnets will be created in.'
+    Description: "AvailabilityZone the subnets will be created in."
     Type: AWS::EC2::AvailabilityZone::Name
 
   IgwRouteTable:
-    Description: 'The ID of a RouteTable that contains the Routes to the Internet Gateway.'
+    Description: "The ID of a RouteTable that contains the Routes to the Internet Gateway."
     Type: String
 
   InternetAccess:
-    Description: 'Indicates whether internet access should be possible for Instances in the private subnets.'
+    Description: "Indicates whether internet access should be possible for Instances in the private subnets."
     Type: String
-    AllowedValues: [ 'disabled', 'enabled' ]
-    Default: 'enabled'
+    AllowedValues: [ "disabled", "enabled" ]
+    Default: "enabled"
 
   PrivateSubnetCidr:
-    Description: 'Private Subnet IP class (must be a valid subclass of VPC, e.g. 10.31.1.0/24).'
+    Description: "Private Subnet IP class (must be a valid subclass of VPC, e.g. 10.31.1.0/24)."
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
 
   PublicSubnetCidr:
-    Description: 'Public Subnet IP class (must be a valid subclass of VPC, e.g. 10.31.0.0/24).'
+    Description: "Public Subnet IP class (must be a valid subclass of VPC, e.g. 10.31.0.0/24)."
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
 
   Vpc:
-    Description: 'ID of the VPC that will host the subnets.'
+    Description: "ID of the VPC that will host the subnets."
     Type: AWS::EC2::VPC::Id
 
 
@@ -104,7 +104,7 @@ Parameters:
 
 Conditions:
   # If access to the internet should be disabled, we should do this
-  EnableInternetAccess: !Equals [ !Ref InternetAccess, 'enabled' ]
+  EnableInternetAccess: !Equals [ !Ref InternetAccess, "enabled" ]
 
 
 ################################################################################
@@ -127,11 +127,11 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-rt-private-${Designation}'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-rt-private-${Designation}"
 
   # This private subnet should contain most resources. Especially security critical ones.
-  # Components in this subnet can only 'dial out' via the NAT Gateway but are not by default not reachable form the WWW
+  # Components in this subnet can only "dial out" via the NAT Gateway but are not by default not reachable form the WWW
   PrivateSubnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -139,8 +139,8 @@ Resources:
       CidrBlock: !Ref PrivateSubnetCidr
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-sn-private-${Designation}'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-sn-private-${Designation}"
       VpcId: !Ref Vpc
 
   # Connecting private route table with the private subnet
@@ -160,8 +160,8 @@ Resources:
     Properties:
       Domain: "vpc"
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-eip-natgw-public'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-eip-natgw-public"
 
   # The Gateway acts as an adapter between private Resources (e.g. AEM-VMs) and the WWW (e.g. repositories, external data, etc.)
   PublicNatGateway:
@@ -171,15 +171,15 @@ Resources:
       AllocationId: !GetAtt PublicEip.AllocationId
       SubnetId: !Ref PublicSubnet
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-natgw-public-${Designation}'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-natgw-public-${Designation}"
 
   # Route to let instances in the PrivateSubnet access the internet via PublicNatGateway.
   PublicNatGatewayRoute:
     Condition: EnableInternetAccess
     Type: AWS::EC2::Route
     Properties:
-      DestinationCidrBlock: 0.0.0.0/0
+      DestinationCidrBlock: "0.0.0.0/0"
       NatGatewayId: !Ref PublicNatGateway
       RouteTableId: !Ref PrivateRouteTable
 
@@ -191,8 +191,8 @@ Resources:
       CidrBlock: !Ref PublicSubnetCidr
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-sn-public-${Designation}'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-sn-public-${Designation}"
       VpcId: !Ref Vpc
 
   # Connecting internet gateway route table with the public subnet
@@ -215,17 +215,17 @@ Resources:
 Outputs:
 
   PrivateRouteTable:
-    Description: 'The ID of the Route Table associated with the private subnet.'
+    Description: "The ID of the Route Table associated with the private subnet."
     Value: !Ref PrivateRouteTable
 
   PrivateSubnet:
-    Description: 'The ID of the private subnet.'
+    Description: "The ID of the private subnet."
     Value: !Ref PrivateSubnet
 
   PublicSubnet:
-    Description: 'The ID of the public subnet.'
+    Description: "The ID of the public subnet."
     Value: !Ref PublicSubnet
 
   AvailabilityZone:
-    Description: 'The Name of the Availability Zone the subnets have been created in.'
+    Description: "The Name of the Availability Zone the subnets have been created in."
     Value: !Ref AvailabilityZone

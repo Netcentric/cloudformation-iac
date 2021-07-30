@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation IaC --- Site-to-Site VPN connection via either Transit Gateway or Virtual Private Gateway'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- Site-to-Site VPN connection via either Transit Gateway or Virtual Private Gateway"
 
 ################################################################################
 #
@@ -21,10 +21,10 @@ Description: 'CloudFormation IaC --- Site-to-Site VPN connection via either Tran
 #       false -> Enable static routing and create <number> static routes
 #
 #   VPN Solution:
-#     TransitGatewayId != ''
+#     TransitGatewayId != ""
 #       true  -> Connect VPC via Transit Gateway
 #       false -> Do nothing [default]
-#     CustomerGatewayId != ''
+#     CustomerGatewayId != ""
 #       true  -> Connect VPC via Virtual Private Gateway
 #       false -> Do nothing [default]
 #
@@ -44,24 +44,24 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: 'Naming details'
+          default: "Naming details"
         Parameters:
           - RootStackName
       - Label:
-          default: 'VPN Connection configuration'
+          default: "VPN Connection configuration"
         Parameters:
           - StaticRoutes
           - StaticRoutesCount
           - VpcId
       - Label:
-          default: 'Transit Gateway (optional)'
+          default: "Transit Gateway (optional)"
         Parameters:
           - RouteTables
           - RouteTablesCount
           - SubnetIds
           - TransitGatewayId
       - Label:
-          default: 'Virtual Private Gateway (optional)'
+          default: "Virtual Private Gateway (optional)"
         Parameters:
           - AmazonSideAsn
           - CustomerGatewayId
@@ -83,7 +83,7 @@ Parameters:
   #=======================================
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "prod" or "nonprod").'
+    Description: "The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: \"prod\" or \"nonprod\")."
     Type: String
 
   #=======================================
@@ -91,18 +91,18 @@ Parameters:
   #=======================================
 
   StaticRoutes:
-    Description: 'A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5).'
+    Description: "A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5)."
     Type: CommaDelimitedList
-    Default: ''
+    Default: ""
 
   StaticRoutesCount:
-    Description: 'The number of CIDR blocks specified in StaticRoutes (max: 5).'
+    Description: "The number of CIDR blocks specified in StaticRoutes (max: 5)."
     Type: Number
     AllowedValues: [ 0, 1, 2, 3, 4, 5 ]
     Default: 0
 
   VpcId:
-    Description: 'The ID of the VPC to associate with this VPNs Gateway.'
+    Description: "The ID of the VPC to associate with this VPNs Gateway."
     Type: String
 
   #=======================================
@@ -110,44 +110,44 @@ Parameters:
   #=======================================
 
   RouteTables:
-    Description: 'The IDs of the route tables that should be used when creating static routes (max: 3).'
+    Description: "The IDs of the route tables that should be used when creating static routes (max: 3)."
     Type: CommaDelimitedList
-    Default: ''
+    Default: ""
 
   RouteTablesCount:
-    Description: 'The number of route tables blocks specified in RouteTables (max: 3).'
+    Description: "The number of route tables blocks specified in RouteTables (max: 3)."
     Type: Number
     AllowedValues: [ 0, 1, 2, 3 ]
     Default: 0
 
   SubnetIds:
-    Description: 'The IDs of one or more subnets to attach the Transit Gateway to. You can specify only one subnet per Availability Zone. You must specify at least one subnet, but we recommend that you specify two subnets for better availability. The transit gateway uses one IP address from each specified subnet.'
+    Description: "The IDs of one or more subnets to attach the Transit Gateway to. You can specify only one subnet per Availability Zone. You must specify at least one subnet, but we recommend that you specify two subnets for better availability. The transit gateway uses one IP address from each specified subnet."
     Type: CommaDelimitedList
-    Default: ''
+    Default: ""
 
   TransitGatewayId:
-    Description: 'The ID of the transit gateway associated with the VPN connection. You must specify either TransitGatewayId or use the option to create a VPN Gateway, but not both.'
+    Description: "The ID of the transit gateway associated with the VPN connection. You must specify either TransitGatewayId or use the option to create a VPN Gateway, but not both."
     Type: String
-    Default: ''
+    Default: ""
 
   #=======================================
   # Virtual Private Gateway (optional)
   #=======================================
 
   AmazonSideAsn:
-    Description: 'The private Autonomous System Number (ASN) for the Amazon side of a BGP session.'
+    Description: "The private Autonomous System Number (ASN) for the Amazon side of a BGP session."
     Type: Number
     Default: 0
 
   CustomerGatewayId:
-    Description: 'The ID of the customer gateway. This can either be an embedded JSON object or a reference to a Gateway ID.'
+    Description: "The ID of the customer gateway. This can either be an embedded JSON object or a reference to a Gateway ID."
     Type: String
-    Default: ''
+    Default: ""
 
   RoutePropagationTargets:
-    Description: 'A list of RouteTable IDs that are associated with a VPC. The routing tables must be associated with the same VPC that the virtual private gateway is attached to.'
+    Description: "A list of RouteTable IDs that are associated with a VPC. The routing tables must be associated with the same VPC that the virtual private gateway is attached to."
     Type: CommaDelimitedList
-    Default: ''
+    Default: ""
 
 
 ################################################################################
@@ -198,7 +198,7 @@ Conditions:
   UseTransitGateway: !Not
     - !Equals
       - !Ref TransitGatewayId
-      - ''
+      - ""
 
   #=======================================
   # Virtual Private Gateway
@@ -215,7 +215,7 @@ Conditions:
     - !Not
       - !Equals
         - !Select [ 0, !Ref RoutePropagationTargets ]
-        - ''
+        - ""
 
   # If no ASN was given, we won't specify it in the VPNGateway
   SetAmazonSideAsn: !Not
@@ -225,7 +225,7 @@ Conditions:
   UseVirtualPrivateGateway: !Not
     - !Equals
       - !Ref CustomerGatewayId
-      - ''
+      - ""
 
 
 ################################################################################
@@ -254,8 +254,8 @@ Resources:
     Properties:
       SubnetIds: !Ref SubnetIds
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-tgw-attachment'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-tgw-attachment"
       TransitGatewayId: !Ref TransitGatewayId
       VpcId: !Ref VpcId
 
@@ -268,13 +268,13 @@ Resources:
     DependsOn: [ TransitGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: './routes.yaml'
+      TemplateURL: "./routes.yaml"
       Parameters:
         DestinationCidrBlocks: !Join
-          - ','
+          - ","
           - !Ref StaticRoutes
         DestinationCidrBlocksCount: !Ref StaticRoutesCount
-        RouteTableId: !Select [ '0', !Ref RouteTables ]
+        RouteTableId: !Select [ "0", !Ref RouteTables ]
         TransitGatewayId: !Ref TransitGatewayId
 
   StaticTgwRoutes2:
@@ -282,13 +282,13 @@ Resources:
     DependsOn: [ TransitGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: './routes.yaml'
+      TemplateURL: "./routes.yaml"
       Parameters:
         DestinationCidrBlocks: !Join
-          - ','
+          - ","
           - !Ref StaticRoutes
         DestinationCidrBlocksCount: !Ref StaticRoutesCount
-        RouteTableId: !Select [ '1', !Ref RouteTables ]
+        RouteTableId: !Select [ "1", !Ref RouteTables ]
         TransitGatewayId: !Ref TransitGatewayId
 
   StaticTgwRoutes3:
@@ -296,13 +296,13 @@ Resources:
     DependsOn: [ TransitGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: './routes.yaml'
+      TemplateURL: "./routes.yaml"
       Parameters:
         DestinationCidrBlocks: !Join
-          - ','
+          - ","
           - !Ref StaticRoutes
         DestinationCidrBlocksCount: !Ref StaticRoutesCount
-        RouteTableId: !Select [ '2', !Ref RouteTables ]
+        RouteTableId: !Select [ "2", !Ref RouteTables ]
         TransitGatewayId: !Ref TransitGatewayId
 
   #=======================================
@@ -321,9 +321,9 @@ Resources:
         - true
         - false
       Tags:
-        - Key: Name
-          Value: !Sub 'company-network <> ${RootStackName}'
-      Type: 'ipsec.1'
+        - Key: "Name"
+          Value: !Sub "company-network <> ${RootStackName}"
+      Type: "ipsec.1"
       VpnGatewayId: !Ref VpnGateway
 
   VpnGateway:
@@ -335,9 +335,9 @@ Resources:
         - !Ref AmazonSideAsn
         - !Ref AWS::NoValue
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-vgw'
-      Type: 'ipsec.1'
+        - Key: "Name"
+          Value: !Sub "${RootStackName}-vgw"
+      Type: "ipsec.1"
 
   VpnGatewayAttachment:
     Condition: UseVirtualPrivateGateway
@@ -362,10 +362,10 @@ Resources:
     Condition: CreateStaticVgwRoutes
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: './routes.yaml'
+      TemplateURL: "./routes.yaml"
       Parameters:
         DestinationCidrBlocks: !Join
-          - ','
+          - ","
           - !Ref StaticRoutes
         DestinationCidrBlocksCount: !Ref StaticRoutesCount
         VpnConnectionId: !Ref VpnConnection
