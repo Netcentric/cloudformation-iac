@@ -254,7 +254,6 @@ Resources:
         Version: "2012-10-17"
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-      Path: "/"
       Policies:
         - PolicyDocument:
             Statement:

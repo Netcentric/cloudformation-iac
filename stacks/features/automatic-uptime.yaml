@@ -50,7 +50,6 @@ Resources:
             Principal:
               Service:
                 - lambda.amazonaws.com
-      Path: "/"
       Policies:
         - PolicyName: "ec2SchedulerPermissions"
           PolicyDocument:

@@ -92,7 +92,6 @@ Resources:
               Service:
                 - "dlm.amazonaws.com"
       Description: "IAM Role for automatic Snapshot creation"
-      Path: "/"
       Policies:
         - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Manage_Snapshots"
           PolicyDocument:
@@ -115,8 +114,6 @@ Resources:
                 Effect: "Allow"
                 Resource: "arn:aws:ec2:*::snapshot/*"
             Version: "2012-10-17"
-      # Naming an IAM resource can cause an unrecoverable error if you reuse the same template in multiple Regions
-      RoleName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}"
 
   DlmLifecyclePolicy:
     DependsOn: IamRole
