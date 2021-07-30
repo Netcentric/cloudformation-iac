@@ -20,15 +20,15 @@ Description: "CloudFormation IaC --- Infrastructure for automatic, schedule base
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - ScheduleName
-      - Label:
-          default: "Snapshot policy configuration"
-        Parameters:
-          - RetainCount
-          - ScheduleCron
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - ScheduleName
+    - Label:
+        default: "Snapshot policy configuration"
+      Parameters:
+      - RetainCount
+      - ScheduleCron
 
 
 ################################################################################
@@ -85,35 +85,35 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-          - Action:
-              - "sts:AssumeRole"
-            Effect: "Allow"
-            Principal:
-              Service:
-                - "dlm.amazonaws.com"
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service:
+            - "dlm.amazonaws.com"
       Description: "IAM Role for automatic Snapshot creation"
       Policies:
-        - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Manage_Snapshots"
-          PolicyDocument:
-            Statement:
-              - Action:
-                  - "ec2:CreateSnapshot"
-                  - "ec2:CreateSnapshots"
-                  - "ec2:DeleteSnapshot"
-                  - "ec2:DescribeVolumes"
-                  - "ec2:DescribeInstances"
-                  - "ec2:DescribeSnapshots"
-                Effect: "Allow"
-                Resource: "*"
-            Version: "2012-10-17"
-        - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Tag_Snapshots"
-          PolicyDocument:
-            Statement:
-              - Action:
-                  - "ec2:CreateTags"
-                Effect: "Allow"
-                Resource: "arn:aws:ec2:*::snapshot/*"
-            Version: "2012-10-17"
+      - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Manage_Snapshots"
+        PolicyDocument:
+          Statement:
+          - Action:
+            - "ec2:CreateSnapshot"
+            - "ec2:CreateSnapshots"
+            - "ec2:DeleteSnapshot"
+            - "ec2:DescribeVolumes"
+            - "ec2:DescribeInstances"
+            - "ec2:DescribeSnapshots"
+            Effect: "Allow"
+            Resource: "*"
+          Version: "2012-10-17"
+      - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Tag_Snapshots"
+        PolicyDocument:
+          Statement:
+          - Action:
+            - "ec2:CreateTags"
+            Effect: "Allow"
+            Resource: "arn:aws:ec2:*::snapshot/*"
+          Version: "2012-10-17"
 
   DlmLifecyclePolicy:
     DependsOn: IamRole
@@ -123,15 +123,15 @@ Resources:
       ExecutionRoleArn: !GetAtt IamRole.Arn
       PolicyDetails:
         ResourceTypes:
-          - "VOLUME"
+        - "VOLUME"
         Schedules:
-          - CopyTags: true
-            CreateRule:
-              CronExpression: !Sub "cron(${ScheduleCron})"
-            Name: !Sub "Automatic Snapshots - ${ScheduleName}"
-            RetainRule:
-              Count: !Ref RetainCount
+        - CopyTags: true
+          CreateRule:
+            CronExpression: !Sub "cron(${ScheduleCron})"
+          Name: !Sub "Automatic Snapshots - ${ScheduleName}"
+          RetainRule:
+            Count: !Ref RetainCount
         TargetTags:
-          - Key: "AutomaticSnapshots"
-            Value: !Sub "${ScheduleName}"
+        - Key: "AutomaticSnapshots"
+          Value: !Sub "${ScheduleName}"
       State: "ENABLED"

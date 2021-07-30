@@ -30,39 +30,39 @@ Description: "CloudFormation IaC --- VPC comprising of one to three Availability
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - RootStackName
-      - Label:
-          default: "Network configuration"
-        Parameters:
-          - InternetAccess
-          - VpcCidr
-          - VpcWideDmz
-      - Label:
-          default: "Network configuration - Availability Zone 1"
-        Parameters:
-          - Az1PublicSubnetCidr
-          - Az1PrivateSubnetCidr
-      - Label:
-          default: "Network configuration - Availability Zone 2 (optional)"
-        Parameters:
-          - Az2PublicSubnetCidr
-          - Az2PrivateSubnetCidr
-      - Label:
-          default: "Network configuration - Availability Zone 3 (optional)"
-        Parameters:
-          - Az3PublicSubnetCidr
-          - Az3PrivateSubnetCidr
-      - Label:
-          default: "VPN configuration (optional)"
-        Parameters:
-          - VpnAmazonSideAsn
-          - VpnCustomerGatewayId
-          - VpnStaticRoutes
-          - VpnStaticRoutesCount
-          - VpnTransitGatewayId
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - RootStackName
+    - Label:
+        default: "Network configuration"
+      Parameters:
+      - InternetAccess
+      - VpcCidr
+      - VpcWideDmz
+    - Label:
+        default: "Network configuration - Availability Zone 1"
+      Parameters:
+      - Az1PublicSubnetCidr
+      - Az1PrivateSubnetCidr
+    - Label:
+        default: "Network configuration - Availability Zone 2 (optional)"
+      Parameters:
+      - Az2PublicSubnetCidr
+      - Az2PrivateSubnetCidr
+    - Label:
+        default: "Network configuration - Availability Zone 3 (optional)"
+      Parameters:
+      - Az3PublicSubnetCidr
+      - Az3PrivateSubnetCidr
+    - Label:
+        default: "VPN configuration (optional)"
+      Parameters:
+      - VpnAmazonSideAsn
+      - VpnCustomerGatewayId
+      - VpnStaticRoutes
+      - VpnStaticRoutesCount
+      - VpnTransitGatewayId
 
 
 ################################################################################
@@ -273,8 +273,8 @@ Resources:
       EnableDnsHostnames: true
       InstanceTenancy: "default"
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-vpc"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-vpc"
 
   #=======================================
   # Subnets
@@ -354,8 +354,8 @@ Resources:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-igw"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-igw"
 
   # Connect the VPC with the internet gateway (WWW)
   InternetGatewayAttachment:
@@ -375,8 +375,8 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-rt-public"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-rt-public"
       VpcId: !Ref Vpc
 
   #=======================================
@@ -463,8 +463,8 @@ Resources:
     Properties:
       GroupDescription: !Sub "Rules for connections from and to all Instances in VPC ${RootStackName}"
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-sg-dmz-vpc"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-sg-dmz-vpc"
       VpcId: !Ref Vpc
 
   # If a VOC wide DMZ is enabled, allow incoming traffic from this SG -> All instances can communicate with all instances attached to the same SG

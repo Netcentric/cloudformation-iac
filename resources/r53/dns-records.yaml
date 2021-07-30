@@ -20,18 +20,18 @@ Description: "CloudFormation IaC --- Private Route 53 DNS Record for a given EC2
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "DNS Record configuration"
-        Parameters:
-          - DnsName
-          - HostedZoneName
-          - Target
-          - TimeToLive
-          - Type
-      - Label:
-          default: "Remote DNS Record configuration (optional)"
-        Parameters:
-          - ServiceToken
+    - Label:
+        default: "DNS Record configuration"
+      Parameters:
+      - DnsName
+      - HostedZoneName
+      - Target
+      - TimeToLive
+      - Type
+    - Label:
+        default: "Remote DNS Record configuration (optional)"
+      Parameters:
+      - ServiceToken
 
 
 ################################################################################
@@ -121,7 +121,7 @@ Resources:
       HostedZoneName: !Ref HostedZoneName
       Name: !Sub "${DnsName}.${HostedZoneName}"
       ResourceRecords:
-        - !Ref Target
+      - !Ref Target
       TTL: !Ref TimeToLive
       Type: !Ref Type
 

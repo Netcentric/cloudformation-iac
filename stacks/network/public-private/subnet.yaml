@@ -20,20 +20,20 @@ Description: "CloudFormation IaC --- A public (accessible from the internet) and
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - Designation
-          - RootStackName
-      - Label:
-          default: "Subnet configuration"
-        Parameters:
-          - AvailabilityZone
-          - IgwRouteTable
-          - InternetAccess
-          - PrivateSubnetCidr
-          - PublicSubnetCidr
-          - Vpc
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+      - RootStackName
+    - Label:
+        default: "Subnet configuration"
+      Parameters:
+      - AvailabilityZone
+      - IgwRouteTable
+      - InternetAccess
+      - PrivateSubnetCidr
+      - PublicSubnetCidr
+      - Vpc
 
 
 ################################################################################
@@ -127,8 +127,8 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-rt-private-${Designation}"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-rt-private-${Designation}"
 
   # This private subnet should contain most resources. Especially security critical ones.
   # Components in this subnet can only "dial out" via the NAT Gateway but are not by default not reachable form the WWW
@@ -139,8 +139,8 @@ Resources:
       CidrBlock: !Ref PrivateSubnetCidr
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-sn-private-${Designation}"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-sn-private-${Designation}"
       VpcId: !Ref Vpc
 
   # Connecting private route table with the private subnet
@@ -160,8 +160,8 @@ Resources:
     Properties:
       Domain: "vpc"
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-eip-natgw-public"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-eip-natgw-public"
 
   # The Gateway acts as an adapter between private Resources (e.g. AEM-VMs) and the WWW (e.g. repositories, external data, etc.)
   PublicNatGateway:
@@ -171,8 +171,8 @@ Resources:
       AllocationId: !GetAtt PublicEip.AllocationId
       SubnetId: !Ref PublicSubnet
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-natgw-public-${Designation}"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-natgw-public-${Designation}"
 
   # Route to let instances in the PrivateSubnet access the internet via PublicNatGateway.
   PublicNatGatewayRoute:
@@ -191,8 +191,8 @@ Resources:
       CidrBlock: !Ref PublicSubnetCidr
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-sn-public-${Designation}"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-sn-public-${Designation}"
       VpcId: !Ref Vpc
 
   # Connecting internet gateway route table with the public subnet

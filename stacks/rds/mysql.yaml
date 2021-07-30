@@ -25,31 +25,31 @@ Description: "CloudFormation IaC --- A private MySQL engine RDS Instance."
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - Designation
-          - RootStackName
-      - Label:
-          default: "Network configuration"
-        Parameters:
-          - SubnetIds
-          - VpcId
-      - Label:
-          default: "RDS Instance configuration"
-        Parameters:
-          - DBInstanceClass
-          - DBInstanceEngineVersion
-          - DBInstancePort
-          - DBInstanceSecurityGroupIds
-          - MasterUserPasswordSsmSecureName
-          - MasterUserPasswordSsmSecureVersion
-      - Label:
-          default: "DNS Record configuration (optional)"
-        Parameters:
-          - DnsServiceToken
-          - HostedZoneName
-          - TimeToLive
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+      - RootStackName
+    - Label:
+        default: "Network configuration"
+      Parameters:
+      - SubnetIds
+      - VpcId
+    - Label:
+        default: "RDS Instance configuration"
+      Parameters:
+      - DBInstanceClass
+      - DBInstanceEngineVersion
+      - DBInstancePort
+      - DBInstanceSecurityGroupIds
+      - MasterUserPasswordSsmSecureName
+      - MasterUserPasswordSsmSecureVersion
+    - Label:
+        default: "DNS Record configuration (optional)"
+      Parameters:
+      - DnsServiceToken
+      - HostedZoneName
+      - TimeToLive
 
 
 ################################################################################
@@ -194,7 +194,7 @@ Resources:
       DeleteAutomatedBackups: false
       DeletionProtection: false
       EnableCloudwatchLogsExports:
-        - "error"
+      - "error"
       Engine: "MySQL"
       EngineVersion: !Ref DBInstanceEngineVersion
       MasterUsername: "root"

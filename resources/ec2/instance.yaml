@@ -30,56 +30,56 @@ Description: "CloudFormation IaC --- EC2 Instance with optional Route 53 DNS Rec
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - Designation
-          - RootStackName
-      - Label:
-          default: "Instance configuration"
-        Parameters:
-          - AvailabilityZone
-          - HostName
-          - IamInstanceProfile
-          - ImageId
-          - InstanceType
-          - RootKeyName
-          - SecurityGroupIds
-          - SubnetId
-      - Label:
-          default: "Additional features"
-        Parameters:
-          - FeatureAutoSnapshot
-          - FeatureUptimeWindows
-      - Label:
-          default: "/opt (optional)"
-        Parameters:
-          - VolumeOptDeviceName
-          - VolumeOptEncryption
-          - VolumeOptIops
-          - VolumeOptSize
-          - VolumeOptType
-      - Label:
-          default: "/tmp (optional)"
-        Parameters:
-          - VolumeTmpDeviceName
-          - VolumeTmpEncryption
-          - VolumeTmpIops
-          - VolumeTmpSize
-          - VolumeTmpType
-      - Label:
-          default: "/var (optional)"
-        Parameters:
-          - VolumeVarDeviceName
-          - VolumeVarEncryption
-          - VolumeVarIops
-          - VolumeVarSize
-          - VolumeVarType
-      - Label:
-          default: "DNS Record configuration (optional)"
-        Parameters:
-          - DnsServiceToken
-          - HostedZoneName
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+      - RootStackName
+    - Label:
+        default: "Instance configuration"
+      Parameters:
+      - AvailabilityZone
+      - HostName
+      - IamInstanceProfile
+      - ImageId
+      - InstanceType
+      - RootKeyName
+      - SecurityGroupIds
+      - SubnetId
+    - Label:
+        default: "Additional features"
+      Parameters:
+      - FeatureAutoSnapshot
+      - FeatureUptimeWindows
+    - Label:
+        default: "/opt (optional)"
+      Parameters:
+      - VolumeOptDeviceName
+      - VolumeOptEncryption
+      - VolumeOptIops
+      - VolumeOptSize
+      - VolumeOptType
+    - Label:
+        default: "/tmp (optional)"
+      Parameters:
+      - VolumeTmpDeviceName
+      - VolumeTmpEncryption
+      - VolumeTmpIops
+      - VolumeTmpSize
+      - VolumeTmpType
+    - Label:
+        default: "/var (optional)"
+      Parameters:
+      - VolumeVarDeviceName
+      - VolumeVarEncryption
+      - VolumeVarIops
+      - VolumeVarSize
+      - VolumeVarType
+    - Label:
+        default: "DNS Record configuration (optional)"
+      Parameters:
+      - DnsServiceToken
+      - HostedZoneName
 
 
 ################################################################################
@@ -380,75 +380,75 @@ Resources:
       SecurityGroupIds: !Ref SecurityGroupIds
       SubnetId: !Ref SubnetId
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-instance-${Designation}"
-        - !If
-          - EnableUptimeWindows
-          - Key: "startTime"
-            Value: !Select [ "0", !Ref FeatureUptimeWindows ]
-          - !Ref AWS::NoValue
-        - !If
-          - EnableUptimeWindows
-          - Key: "stopTime"
-            Value: !Select [ "1", !Ref FeatureUptimeWindows ]
-          - !Ref AWS::NoValue
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-instance-${Designation}"
+      - !If
+        - EnableUptimeWindows
+        - Key: "startTime"
+          Value: !Select [ "0", !Ref FeatureUptimeWindows ]
+        - !Ref AWS::NoValue
+      - !If
+        - EnableUptimeWindows
+        - Key: "stopTime"
+          Value: !Select [ "1", !Ref FeatureUptimeWindows ]
+        - !Ref AWS::NoValue
       Volumes:
-        - !If
-          - CreateVolumeOpt
-          - Device: !Ref VolumeOptDeviceName
-            VolumeId: !Ref VolumeOpt
-          - !Ref AWS::NoValue
-        - !If
-          - CreateVolumeTmp
-          - Device: !Ref VolumeTmpDeviceName
-            VolumeId: !Ref VolumeTmp
-          - !Ref AWS::NoValue
-        - !If
-          - CreateVolumeVar
-          - Device: !Ref VolumeVarDeviceName
-            VolumeId: !Ref VolumeVar
-          - !Ref AWS::NoValue
+      - !If
+        - CreateVolumeOpt
+        - Device: !Ref VolumeOptDeviceName
+          VolumeId: !Ref VolumeOpt
+        - !Ref AWS::NoValue
+      - !If
+        - CreateVolumeTmp
+        - Device: !Ref VolumeTmpDeviceName
+          VolumeId: !Ref VolumeTmp
+        - !Ref AWS::NoValue
+      - !If
+        - CreateVolumeVar
+        - Device: !Ref VolumeVarDeviceName
+          VolumeId: !Ref VolumeVar
+        - !Ref AWS::NoValue
       UserData:
         Fn::Base64:
           !Sub |
-              #!/usr/bin/env bash
-              # CentOS (&& RHEL?)
-              # Alternatives: http://www.danieleyer.com/blog/2016/07/15/adding-aws-cfn-bootstrap-cloudformation-helper-scripts-to-custom-linux-amis/
+            #!/usr/bin/env bash
+            # CentOS (&& RHEL?)
+            # Alternatives: http://www.danieleyer.com/blog/2016/07/15/adding-aws-cfn-bootstrap-cloudformation-helper-scripts-to-custom-linux-amis/
 
-              # Setup cfn-bootstrap
-              if [ -f /etc/centos-release ]; then
-                # CentOS
-                # See: https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
+            # Setup cfn-bootstrap
+            if [ -f /etc/centos-release ]; then
+              # CentOS
+              # See: https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
 
-                yum install --assumeyes epel-release
-                yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm
-                ln --symbolic /usr/local/lib/python2.7/site-packages/cfnbootstrap /usr/lib/python2.7/site-packages/cfnbootstrap
-              elif [ -f /etc/redhat-release ]; then
-                # RHEL
-                # See: https://aws.amazon.com/premiumsupport/knowledge-center/install-cloudformation-scripts/
+              yum install --assumeyes epel-release
+              yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm
+              ln --symbolic /usr/local/lib/python2.7/site-packages/cfnbootstrap /usr/lib/python2.7/site-packages/cfnbootstrap
+            elif [ -f /etc/redhat-release ]; then
+              # RHEL
+              # See: https://aws.amazon.com/premiumsupport/knowledge-center/install-cloudformation-scripts/
 
-                yum install --assumeyes python-setuptools wget
-                mkdir -p /opt/aws/bin
-                wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-                easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz
-              fi
+              yum install --assumeyes python-setuptools wget
+              mkdir -p /opt/aws/bin
+              wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+              easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz
+            fi
 
-              # Run cfn-init
-              /opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --resource=Instance --configsets=default,init-set,restart-set --region=${AWS::Region}
+            # Run cfn-init
+            /opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --resource=Instance --configsets=default,init-set,restart-set --region=${AWS::Region}
     Metadata:
       AWS::CloudFormation::Init:
         configSets:
           default:
-            - SetHostname
-            - EnsureAwsCli
-            - EnsureCfnBootstrap
-            - EnsureCfnHup
-            - BootstrapPuppet
-            - BootstrapVolumes
+          - SetHostname
+          - EnsureAwsCli
+          - EnsureCfnBootstrap
+          - EnsureCfnHup
+          - BootstrapPuppet
+          - BootstrapVolumes
           init-set:
-            - InitializePuppet
+          - InitializePuppet
           restart-set:
-            - OptionalReboot
+          - OptionalReboot
 
         # Install the Puppet Agent and register this node with the Puppet Master
         BootstrapPuppet:
@@ -831,8 +831,8 @@ Resources:
                 enabled: "true"
                 ensureRunning: "true"
                 files:
-                  - "/etc/cfn/cfn-hup.conf"
-                  - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                - "/etc/cfn/cfn-hup.conf"
+                - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
 
         # Is only started in initial run of cfn-init and sets a puppet installer cronjob
         InitializePuppet:
@@ -897,13 +897,13 @@ Resources:
         - !Ref AWS::NoValue
       Size: !Ref VolumeOptSize
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-volume-${Designation}-opt"
-        - !If
-          - EnableAutoSnapshot
-          - Key: "AutomaticSnapshots"
-            Value: !Ref FeatureAutoSnapshot
-          - !Ref AWS::NoValue
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-volume-${Designation}-opt"
+      - !If
+        - EnableAutoSnapshot
+        - Key: "AutomaticSnapshots"
+          Value: !Ref FeatureAutoSnapshot
+        - !Ref AWS::NoValue
       VolumeType: !Ref VolumeOptType
 
   # The Volume that will be mounted to /tmp
@@ -920,13 +920,13 @@ Resources:
         - !Ref AWS::NoValue
       Size: !Ref VolumeTmpSize
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-volume-${Designation}-tmp"
-        - !If
-          - EnableAutoSnapshot
-          - Key: "AutomaticSnapshots"
-            Value: !Ref FeatureAutoSnapshot
-          - !Ref AWS::NoValue
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-volume-${Designation}-tmp"
+      - !If
+        - EnableAutoSnapshot
+        - Key: "AutomaticSnapshots"
+          Value: !Ref FeatureAutoSnapshot
+        - !Ref AWS::NoValue
       VolumeType: !Ref VolumeTmpType
 
   # The Volume that will be mounted to /var
@@ -943,13 +943,13 @@ Resources:
         - !Ref AWS::NoValue
       Size: !Ref VolumeVarSize
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-volume-${Designation}-var"
-        - !If
-          - EnableAutoSnapshot
-          - Key: "AutomaticSnapshots"
-            Value: !Ref FeatureAutoSnapshot
-          - !Ref AWS::NoValue
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-volume-${Designation}-var"
+      - !If
+        - EnableAutoSnapshot
+        - Key: "AutomaticSnapshots"
+          Value: !Ref FeatureAutoSnapshot
+        - !Ref AWS::NoValue
       VolumeType: !Ref VolumeVarType
 
   #=======================================

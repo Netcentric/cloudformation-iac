@@ -25,77 +25,77 @@ Description: "CloudFormation IaC --- Host Group consisting of an optional AEM Au
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - Designation
-          - RootStackName
-      - Label:
-          default: "Host Group configuration"
-        Parameters:
-          - AvailabilityZone
-          - IamInstanceProfile
-          - RootKeyName
-          - SubnetId
-      - Label:
-          default: "Additional features"
-        Parameters:
-          - FeatureAutoSnapshot
-          - FeatureUptimeWindows
-          - FeatureVolumeEncryption
-      - Label:
-          default: "Author"
-        Parameters:
-          - AuthorImageId
-          - AuthorInstanceType
-          - AuthorSecurityGroupIds
-          - AuthorVolumeOptIops
-          - AuthorVolumeOptSize
-          - AuthorVolumeOptType
-          - AuthorVolumeTmpIops
-          - AuthorVolumeTmpSize
-          - AuthorVolumeTmpType
-          - AuthorVolumeVarIops
-          - AuthorVolumeVarSize
-          - AuthorVolumeVarType
-      - Label:
-          default: "Author Dispatcher (optional)"
-        Parameters:
-          - AuthorDispatcherImageId
-          - AuthorDispatcherInstanceType
-          - AuthorDispatcherSecurityGroupIds
-          - AuthorDispatcherVolumeVarIops
-          - AuthorDispatcherVolumeVarSize
-          - AuthorDispatcherVolumeVarType
-      - Label:
-          default: "Publish"
-        Parameters:
-          - PublishImageId
-          - PublishInstanceType
-          - PublishSecurityGroupIds
-          - PublishVolumeOptIops
-          - PublishVolumeOptSize
-          - PublishVolumeOptType
-          - PublishVolumeTmpIops
-          - PublishVolumeTmpSize
-          - PublishVolumeTmpType
-          - PublishVolumeVarIops
-          - PublishVolumeVarSize
-          - PublishVolumeVarType
-      - Label:
-          default: "Publish Dispatcher (optional)"
-        Parameters:
-          - PublishDispatcherImageId
-          - PublishDispatcherInstanceType
-          - PublishDispatcherSecurityGroupIds
-          - PublishDispatcherVolumeVarIops
-          - PublishDispatcherVolumeVarSize
-          - PublishDispatcherVolumeVarType
-      - Label:
-          default: "DNS Record configuration (optional)"
-        Parameters:
-          - DnsServiceToken
-          - HostedZoneName
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+      - RootStackName
+    - Label:
+        default: "Host Group configuration"
+      Parameters:
+      - AvailabilityZone
+      - IamInstanceProfile
+      - RootKeyName
+      - SubnetId
+    - Label:
+        default: "Additional features"
+      Parameters:
+      - FeatureAutoSnapshot
+      - FeatureUptimeWindows
+      - FeatureVolumeEncryption
+    - Label:
+        default: "Author"
+      Parameters:
+      - AuthorImageId
+      - AuthorInstanceType
+      - AuthorSecurityGroupIds
+      - AuthorVolumeOptIops
+      - AuthorVolumeOptSize
+      - AuthorVolumeOptType
+      - AuthorVolumeTmpIops
+      - AuthorVolumeTmpSize
+      - AuthorVolumeTmpType
+      - AuthorVolumeVarIops
+      - AuthorVolumeVarSize
+      - AuthorVolumeVarType
+    - Label:
+        default: "Author Dispatcher (optional)"
+      Parameters:
+      - AuthorDispatcherImageId
+      - AuthorDispatcherInstanceType
+      - AuthorDispatcherSecurityGroupIds
+      - AuthorDispatcherVolumeVarIops
+      - AuthorDispatcherVolumeVarSize
+      - AuthorDispatcherVolumeVarType
+    - Label:
+        default: "Publish"
+      Parameters:
+      - PublishImageId
+      - PublishInstanceType
+      - PublishSecurityGroupIds
+      - PublishVolumeOptIops
+      - PublishVolumeOptSize
+      - PublishVolumeOptType
+      - PublishVolumeTmpIops
+      - PublishVolumeTmpSize
+      - PublishVolumeTmpType
+      - PublishVolumeVarIops
+      - PublishVolumeVarSize
+      - PublishVolumeVarType
+    - Label:
+        default: "Publish Dispatcher (optional)"
+      Parameters:
+      - PublishDispatcherImageId
+      - PublishDispatcherInstanceType
+      - PublishDispatcherSecurityGroupIds
+      - PublishDispatcherVolumeVarIops
+      - PublishDispatcherVolumeVarSize
+      - PublishDispatcherVolumeVarType
+    - Label:
+        default: "DNS Record configuration (optional)"
+      Parameters:
+      - DnsServiceToken
+      - HostedZoneName
 
 
 ################################################################################
@@ -423,9 +423,9 @@ Resources:
     Properties:
       TemplateURL: "../../../resources/ec2/instance.yaml"
       Tags:
-        # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
-        - Key: "role"
-          Value: "author"
+      # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
+      - Key: "role"
+        Value: "author"
       Parameters:
         # Naming details
         #
@@ -479,9 +479,9 @@ Resources:
     Properties:
       TemplateURL: "../../../resources/ec2/instance.yaml"
       Tags:
-        # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
-        - Key: "role"
-          Value: "authordispatcher"
+      # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
+      - Key: "role"
+        Value: "authordispatcher"
       Parameters:
         # Naming details
         #
@@ -524,9 +524,9 @@ Resources:
     Properties:
       TemplateURL: "../../../resources/ec2/instance.yaml"
       Tags:
-        # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
-        - Key: "role"
-          Value: "publish"
+      # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
+      - Key: "role"
+        Value: "publish"
       Parameters:
         # Naming details
         #
@@ -580,9 +580,9 @@ Resources:
     Properties:
       TemplateURL: "../../../resources/ec2/instance.yaml"
       Tags:
-        # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
-        - Key: "role"
-          Value: "publishdispatcher"
+      # Which role should be applied (has to be reflected in the hiera roles -> "./hieradata/role/*.yaml")
+      - Key: "role"
+        Value: "publishdispatcher"
       Parameters:
         # Naming details
         #

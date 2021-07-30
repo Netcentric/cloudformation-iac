@@ -162,8 +162,8 @@ Resources:
     Properties:
       PeerVpcId: !Ref PeerVpcId
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RequestingVpcName} <-> ${PeerVpcName}"
+      - Key: "Name"
+        Value: !Sub "${RequestingVpcName} <-> ${PeerVpcName}"
       VpcId: !Ref RequestingVpcId
 
   #----------------------------

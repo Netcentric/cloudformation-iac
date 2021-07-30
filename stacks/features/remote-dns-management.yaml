@@ -25,21 +25,21 @@ Description: "CloudFormation IaC --- Setup utilizing SNS and Lambda to enable th
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - Designation
-      - Label:
-          default: "General configuration"
-        Parameters:
-          - AuthorizedAccounts
-          - HostedZone
-      - Label:
-          default: "Feature: Encryption"
-        Parameters:
-          - FeatureEncryption
-          - KmsMasterKeyId
-          - KmsMasterKeyPrincipals
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+    - Label:
+        default: "General configuration"
+      Parameters:
+      - AuthorizedAccounts
+      - HostedZone
+    - Label:
+        default: "Feature: Encryption"
+      Parameters:
+      - FeatureEncryption
+      - KmsMasterKeyId
+      - KmsMasterKeyPrincipals
 
 
 ################################################################################
@@ -245,24 +245,24 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-          - Action:
-              - "sts:AssumeRole"
-            Effect: "Allow"
-            Principal:
-              Service:
-                - "lambda.amazonaws.com"
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service:
+            - "lambda.amazonaws.com"
         Version: "2012-10-17"
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
       Policies:
-        - PolicyDocument:
-            Statement:
-              - Action:
-                  - "route53:ChangeResourceRecordSets"
-                Effect: "Allow"
-                Resource: "arn:aws:route53:::hostedzone/*"
-            Version: "2012-10-17"
-          PolicyName: "Route53ChangeResourceRecordSets"
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - "route53:ChangeResourceRecordSets"
+            Effect: "Allow"
+            Resource: "arn:aws:route53:::hostedzone/*"
+          Version: "2012-10-17"
+        PolicyName: "Route53ChangeResourceRecordSets"
 
   #=======================================
   # Set up SNS
@@ -280,8 +280,8 @@ Resources:
           - !Ref KmsMasterKeyId
         - !Ref AWS::NoValue
       Subscription:
-        - Endpoint: !GetAtt ManageR53RecordLambda.Arn
-          Protocol: "lambda"
+      - Endpoint: !GetAtt ManageR53RecordLambda.Arn
+        Protocol: "lambda"
 
   RequestR53RecordMasterKey:
     Condition: CreateKmsMasterKey
@@ -291,47 +291,47 @@ Resources:
       KeyPolicy:
         Id: "auto-sns-1"
         Statement:
-          # Taken from the AWS documentation on the default key policy
-          # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default
+        # Taken from the AWS documentation on the default key policy
+        # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default
+        - Action:
+          - "kms:*"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Resource: "*"
+          Sid: "Enable IAM User Permissions"
+        # Taken from the default key that AWS sets up when manually creating an encrypted topic
+        - Action:
+          - "kms:CreateGrant"
+          - "kms:Decrypt"
+          - "kms:DescribeKey"
+          - "kms:GenerateDataKey*"
+          - "kms:ListGrants"
+          Condition:
+            StringEquals:
+              kms:CallerAccount: !Ref AWS::AccountId
+              kms:ViaService: !Sub "sns.${AWS::Region}.amazonaws.com"
+          Effect: "Allow"
+          Principal:
+            AWS: "*"
+          Resource: "*"
+          Sid: "Allow access through SNS for all principals in the account that are authorized to use SNS"
+        # Attempt to fix the "KMSAccessDenied" error when managing DNS entries from within another account
+        # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
+        - !If
+          - HasKmsMasterKeyPrincipals
           - Action:
-              - "kms:*"
+            - "kms:Encrypt"
+            - "kms:Decrypt"
+            - "kms:DescribeKey"
+            - "kms:GenerateDataKey*"
+            - "kms:ReEncrypt"
             Effect: "Allow"
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              AWS: !Ref KmsMasterKeyPrincipals
             Resource: "*"
-            Sid: "Enable IAM User Permissions"
-          # Taken from the default key that AWS sets up when manually creating an encrypted topic
-          - Action:
-              - "kms:CreateGrant"
-              - "kms:Decrypt"
-              - "kms:DescribeKey"
-              - "kms:GenerateDataKey*"
-              - "kms:ListGrants"
-            Condition:
-              StringEquals:
-                kms:CallerAccount: !Ref AWS::AccountId
-                kms:ViaService: !Sub "sns.${AWS::Region}.amazonaws.com"
-            Effect: "Allow"
-            Principal:
-              AWS: "*"
-            Resource: "*"
-            Sid: "Allow access through SNS for all principals in the account that are authorized to use SNS"
-          # Attempt to fix the "KMSAccessDenied" error when managing DNS entries from within another account
-          # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
-          - !If
-            - HasKmsMasterKeyPrincipals
-            - Action:
-                - "kms:Encrypt"
-                - "kms:Decrypt"
-                - "kms:DescribeKey"
-                - "kms:GenerateDataKey*"
-                - "kms:ReEncrypt"
-              Effect: "Allow"
-              Principal:
-                AWS: !Ref KmsMasterKeyPrincipals
-              Resource: "*"
-              Sid: "Allow use of the key for all principals"
-            - !Ref AWS::NoValue
+            Sid: "Allow use of the key for all principals"
+          - !Ref AWS::NoValue
         Version: "2012-10-17"
 
   RequestR53RecordMasterKeyAlias:
@@ -347,12 +347,12 @@ Resources:
     Properties:
       PolicyDocument:
         Statement:
-          - Action:
-              - "sns:Publish"
-            Effect: "Allow"
-            Principal:
-              AWS: !Ref AuthorizedAccounts
-            Resource: !Ref RequestR53Record
+        - Action:
+          - "sns:Publish"
+          Effect: "Allow"
+          Principal:
+            AWS: !Ref AuthorizedAccounts
+          Resource: !Ref RequestR53Record
         Version: "2008-10-17"
       Topics:
         - !Ref RequestR53Record

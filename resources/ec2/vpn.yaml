@@ -22,26 +22,26 @@ Description: "CloudFormation IaC --- Shared VPN infrastructure required for eith
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - RootStackName
-      - Label:
-          default: "VPN configuration"
-        Parameters:
-          - CustomerGatewayId
-          - CustomerGatewayPublicIp
-          - CustomerGatewayBgpAsn
-          - CustomerGatewayConnectionType
-          - VpnSolution
-      - Label:
-          default: "Transit Gateway (optional)"
-        Parameters:
-          - AmazonSideAsn
-          - AutoAcceptSharedAttachments
-          - StaticRoutes
-          - StaticRoutesCount
-          - TransitGatewayId
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - RootStackName
+    - Label:
+        default: "VPN configuration"
+      Parameters:
+      - CustomerGatewayId
+      - CustomerGatewayPublicIp
+      - CustomerGatewayBgpAsn
+      - CustomerGatewayConnectionType
+      - VpnSolution
+    - Label:
+        default: "Transit Gateway (optional)"
+      Parameters:
+      - AmazonSideAsn
+      - AutoAcceptSharedAttachments
+      - StaticRoutes
+      - StaticRoutesCount
+      - TransitGatewayId
 
 
 ################################################################################
@@ -210,8 +210,8 @@ Resources:
       BgpAsn: !Ref CustomerGatewayBgpAsn
       IpAddress: !Ref CustomerGatewayPublicIp
       Tags:
-        - Key: Name
-          Value: !Sub "${RootStackName}-cgw"
+      - Key: Name
+        Value: !Sub "${RootStackName}-cgw"
       Type: !Ref CustomerGatewayConnectionType
 
   #=======================================
@@ -229,8 +229,8 @@ Resources:
       AutoAcceptSharedAttachments: !Ref AutoAcceptSharedAttachments
       Description: "..."
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-tgw"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-tgw"
 
   # Transit Gateway Attachment for VPNs are not yet implemented in the AWS CloudFormation API (this code block is interpolated from the already available CFT code)
   #
@@ -248,8 +248,8 @@ Resources:
   #       - true
   #       - false
   #     Tags:
-  #       - Key: Name
-  #         Value: !Sub "${RootStackName}-tgw-attachment"
+  #     - Key: Name
+  #       Value: !Sub "${RootStackName}-tgw-attachment"
   #     TransitGatewayId: !If
   #       - CreateTransitGateway
   #       - !Ref TransitGateway
@@ -263,8 +263,8 @@ Resources:
   #   Type: AWS::EC2::TransitGatewayRouteTable
   #   Properties:
   #     Tags:
-  #       - Key: "Name"
-  #         Value: !Sub "${RootStackName}-tgw-rt"
+  #     - Key: "Name"
+  #       Value: !Sub "${RootStackName}-tgw-rt"
   #     TransitGatewayId: !If
   #       - CreateTransitGateway
   #       - !Ref TransitGateway

@@ -43,29 +43,29 @@ Description: "CloudFormation IaC --- Site-to-Site VPN connection via either Tran
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - RootStackName
-      - Label:
-          default: "VPN Connection configuration"
-        Parameters:
-          - StaticRoutes
-          - StaticRoutesCount
-          - VpcId
-      - Label:
-          default: "Transit Gateway (optional)"
-        Parameters:
-          - RouteTables
-          - RouteTablesCount
-          - SubnetIds
-          - TransitGatewayId
-      - Label:
-          default: "Virtual Private Gateway (optional)"
-        Parameters:
-          - AmazonSideAsn
-          - CustomerGatewayId
-          - RoutePropagationTargets
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - RootStackName
+    - Label:
+        default: "VPN Connection configuration"
+      Parameters:
+      - StaticRoutes
+      - StaticRoutesCount
+      - VpcId
+    - Label:
+        default: "Transit Gateway (optional)"
+      Parameters:
+      - RouteTables
+      - RouteTablesCount
+      - SubnetIds
+      - TransitGatewayId
+    - Label:
+        default: "Virtual Private Gateway (optional)"
+      Parameters:
+      - AmazonSideAsn
+      - CustomerGatewayId
+      - RoutePropagationTargets
 
 
 ################################################################################
@@ -166,7 +166,7 @@ Conditions:
 
   # Create Route 1 if one or more (-> at least Route 2) have been provided
   CreateStaticRoutes: !Not
-      - !Equals [ !Ref StaticRoutesCount, 0 ]
+    - !Equals [ !Ref StaticRoutesCount, 0 ]
 
   #=======================================
   # Transit Gateway
@@ -254,8 +254,8 @@ Resources:
     Properties:
       SubnetIds: !Ref SubnetIds
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-tgw-attachment"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-tgw-attachment"
       TransitGatewayId: !Ref TransitGatewayId
       VpcId: !Ref VpcId
 
@@ -321,8 +321,8 @@ Resources:
         - true
         - false
       Tags:
-        - Key: "Name"
-          Value: !Sub "company-network <> ${RootStackName}"
+      - Key: "Name"
+        Value: !Sub "company-network <> ${RootStackName}"
       Type: "ipsec.1"
       VpnGatewayId: !Ref VpnGateway
 
@@ -335,8 +335,8 @@ Resources:
         - !Ref AmazonSideAsn
         - !Ref AWS::NoValue
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-vgw"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-vgw"
       Type: "ipsec.1"
 
   VpnGatewayAttachment:

@@ -31,11 +31,11 @@ Metadata:
       - Label:
           default: "Route configuration"
         Parameters:
-          - DestinationCidrBlocks
-          - DestinationCidrBlocksCount
-          - RouteTableId
-          - TransitGatewayId
-          - VpnConnectionId
+        - DestinationCidrBlocks
+        - DestinationCidrBlocksCount
+        - RouteTableId
+        - TransitGatewayId
+        - VpnConnectionId
 
 
 ################################################################################
@@ -89,18 +89,18 @@ Conditions:
 
   # Create Route 2 if two or more routes have been provided
   CreateRoute2: !Or
-      - !Equals [ !Ref DestinationCidrBlocksCount, 2 ]
-      - !Condition CreateRoute3
+    - !Equals [ !Ref DestinationCidrBlocksCount, 2 ]
+    - !Condition CreateRoute3
 
   # Create Route 3 if three or more routes have been provided
   CreateRoute3: !Or
-      - !Equals [ !Ref DestinationCidrBlocksCount, 3 ]
-      - !Condition CreateRoute4
+    - !Equals [ !Ref DestinationCidrBlocksCount, 3 ]
+    - !Condition CreateRoute4
 
   # Create Route 4 if four or more routes have been provided
   CreateRoute4: !Or
-      - !Equals [ !Ref DestinationCidrBlocksCount, 4 ]
-      - !Condition CreateRoute5
+    - !Equals [ !Ref DestinationCidrBlocksCount, 4 ]
+    - !Condition CreateRoute5
 
   # Create Route 5 if five routes have been provided
   CreateRoute5: !Equals [ !Ref DestinationCidrBlocksCount, 5 ]
@@ -111,7 +111,7 @@ Conditions:
 
   # When using a Transit Gateway, we need to create "AWS::EC2::Route"
   CreateRouteTableRoutes: !Not
-      - !Equals [ !Ref TransitGatewayId, "" ]
+    - !Equals [ !Ref TransitGatewayId, "" ]
 
   # Create Route Table Route 2 if two or more routes have been provided
   CreateRouteTableRoute2: !And
@@ -139,7 +139,7 @@ Conditions:
 
   # When using a VPN Gateway, we need to create "AWS::EC2::VPNConnectionRoute"
   CreateVgwRoutes: !Not
-      - !Equals [ !Ref VpnConnectionId, "" ]
+    - !Equals [ !Ref VpnConnectionId, "" ]
 
   # Create VPNConnectionRoute Route 2 if two or more routes have been provided
   CreateVgwRoute2: !And

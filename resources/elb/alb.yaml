@@ -43,60 +43,60 @@ Description: "CloudFormation IaC --- EC2 Application Load Balancer with optional
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - Designation
-          - RootStackName
-      - Label:
-          default: "ALB configuration"
-        Parameters:
-          - DeregistrationDelay
-          - EnableHttp2
-          - Scheme
-          - SecurityGroupIds
-          - StickinessDuration
-          - SubnetIds
-          - TargetPort
-          - TargetProtocol
-          - VpcId
-      - Label:
-          default: "ALB HTTP configuration (optional)"
-        Parameters:
-          - HttpPort
-      - Label:
-          default: "ALB HTTPS configuration (optional)"
-        Parameters:
-          - HttpsPort
-          - SslCertificateArn
-      - Label:
-          default: "Health check configuration (optional)"
-        Parameters:
-          - HealthCheckInterval
-          - HealthCheckPath
-          - HealthCheckProtocol
-          - HealthCheckTimeout
-          - HealthyStatusCode
-          - HealthyThresholdCount
-          - UnhealthyThresholdCount
-      - Label:
-          default: "Target 01"
-        Parameters:
-          - Instance1Id
-      - Label:
-          default: "Target 02 (optional)"
-        Parameters:
-          - Instance2Id
-      - Label:
-          default: "Target 03 (optional)"
-        Parameters:
-          - Instance3Id
-      - Label:
-          default: "DNS Record configuration (optional)"
-        Parameters:
-          - DnsServiceToken
-          - HostedZoneName
-          - TimeToLive
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+      - RootStackName
+    - Label:
+        default: "ALB configuration"
+      Parameters:
+      - DeregistrationDelay
+      - EnableHttp2
+      - Scheme
+      - SecurityGroupIds
+      - StickinessDuration
+      - SubnetIds
+      - TargetPort
+      - TargetProtocol
+      - VpcId
+    - Label:
+        default: "ALB HTTP configuration (optional)"
+      Parameters:
+      - HttpPort
+    - Label:
+        default: "ALB HTTPS configuration (optional)"
+      Parameters:
+      - HttpsPort
+      - SslCertificateArn
+    - Label:
+        default: "Health check configuration (optional)"
+      Parameters:
+      - HealthCheckInterval
+      - HealthCheckPath
+      - HealthCheckProtocol
+      - HealthCheckTimeout
+      - HealthyStatusCode
+      - HealthyThresholdCount
+      - UnhealthyThresholdCount
+    - Label:
+        default: "Target 01"
+      Parameters:
+      - Instance1Id
+    - Label:
+        default: "Target 02 (optional)"
+      Parameters:
+      - Instance2Id
+    - Label:
+        default: "Target 03 (optional)"
+      Parameters:
+      - Instance3Id
+    - Label:
+        default: "DNS Record configuration (optional)"
+      Parameters:
+      - DnsServiceToken
+      - HostedZoneName
+      - TimeToLive
 
 
 ################################################################################
@@ -332,14 +332,14 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       LoadBalancerAttributes:
-        - Key: "routing.http2.enabled"
-          Value: !Ref EnableHttp2
+      - Key: "routing.http2.enabled"
+        Value: !Ref EnableHttp2
       Scheme: !Sub ${Scheme}
       SecurityGroups: !Ref SecurityGroupIds
       Subnets: !Ref SubnetIds
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-alb-${Designation}"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-alb-${Designation}"
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -354,36 +354,36 @@ Resources:
       Port: !Ref TargetPort
       Protocol: !Ref TargetProtocol
       Tags:
-        - Key: "Name"
-          Value: !Sub "${RootStackName}-tg-${Designation}"
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-tg-${Designation}"
       TargetGroupAttributes:
-        - Key: "deregistration_delay.timeout_seconds"
-          Value: !Ref DeregistrationDelay
-        - !If
-            - EnableStickiness
-            - Key: "stickiness.enabled"
-              Value: "true"
-            - !Ref AWS::NoValue
-        - !If
-            - EnableStickiness
-            - Key: "stickiness.type"
-              Value: "lb_cookie"
-            - !Ref AWS::NoValue
-        - !If
-            - EnableStickiness
-            - Key: "stickiness.lb_cookie.duration_seconds"
-              Value: !Ref StickinessDuration
-            - !Ref AWS::NoValue
+      - Key: "deregistration_delay.timeout_seconds"
+        Value: !Ref DeregistrationDelay
+      - !If
+        - EnableStickiness
+        - Key: "stickiness.enabled"
+          Value: "true"
+        - !Ref AWS::NoValue
+      - !If
+        - EnableStickiness
+        - Key: "stickiness.type"
+          Value: "lb_cookie"
+        - !Ref AWS::NoValue
+      - !If
+        - EnableStickiness
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: !Ref StickinessDuration
+        - !Ref AWS::NoValue
       Targets:
-        - Id: !Ref Instance1Id
-        - !If
-            - Has2ndTarget
-            - Id: !Ref Instance2Id
-            - !Ref AWS::NoValue
-        - !If
-            - Has3rdTarget
-            - Id: !Ref Instance3Id
-            - !Ref AWS::NoValue
+      - Id: !Ref Instance1Id
+      - !If
+        - Has2ndTarget
+        - Id: !Ref Instance2Id
+        - !Ref AWS::NoValue
+      - !If
+        - Has3rdTarget
+        - Id: !Ref Instance3Id
+        - !Ref AWS::NoValue
       TargetType: "instance"
       UnhealthyThresholdCount: !Ref UnhealthyThresholdCount
       VpcId: !Ref VpcId
@@ -397,8 +397,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-        - TargetGroupArn: !Ref TargetGroup
-          Type: "forward"
+      - TargetGroupArn: !Ref TargetGroup
+        Type: "forward"
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: !Ref HttpPort
       Protocol: "HTTP"
@@ -412,10 +412,10 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       Certificates:
-        - CertificateArn: !Ref SslCertificateArn
+      - CertificateArn: !Ref SslCertificateArn
       DefaultActions:
-        - TargetGroupArn: !Ref TargetGroup
-          Type: "forward"
+      - TargetGroupArn: !Ref TargetGroup
+        Type: "forward"
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: !Ref HttpsPort
       Protocol: "HTTPS"

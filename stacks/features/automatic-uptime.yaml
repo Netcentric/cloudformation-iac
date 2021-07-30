@@ -44,46 +44,46 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-          - Action:
-              - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
       Policies:
-        - PolicyName: "ec2SchedulerPermissions"
-          PolicyDocument:
-            Statement:
-              - Action:
-                  - "logs:CreateLogGroup"
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
-                Effect: "Allow"
-                Resource: "arn:aws:logs:*:*:log-group:/aws/lambda/*"
-              - Action:
-                  - "ec2:StartInstances"
-                  - "ec2:StopInstances"
-                  - "ec2:DescribeRegions"
-                  - "ec2:DescribeInstances"
-                  - "cloudwatch:PutMetricData"
-                  - "cloudformation:DescribeStacks"
-                  - "kms:CreateGrant"
-                  - "kms:RetireGrant"
-                  - "kms:ListGrants"
-                  - "kms:Encrypt"
-                  - "kms:Decrypt"
-                  - "kms:ReEncrypt*"
-                  - "kms:DescribeKey"
-                  - "kms:GenerateDataKey*"
-                Effect: "Allow"
-                Resource: "*"
-            Version: "2012-10-17"
+      - PolicyName: "ec2SchedulerPermissions"
+        PolicyDocument:
+          Statement:
+          - Action:
+            - "logs:CreateLogGroup"
+            - "logs:CreateLogStream"
+            - "logs:PutLogEvents"
+            Effect: "Allow"
+            Resource: "arn:aws:logs:*:*:log-group:/aws/lambda/*"
+          - Action:
+            - "ec2:StartInstances"
+            - "ec2:StopInstances"
+            - "ec2:DescribeRegions"
+            - "ec2:DescribeInstances"
+            - "cloudwatch:PutMetricData"
+            - "cloudformation:DescribeStacks"
+            - "kms:CreateGrant"
+            - "kms:RetireGrant"
+            - "kms:ListGrants"
+            - "kms:Encrypt"
+            - "kms:Decrypt"
+            - "kms:ReEncrypt*"
+            - "kms:DescribeKey"
+            - "kms:GenerateDataKey*"
+            Effect: "Allow"
+            Resource: "*"
+          Version: "2012-10-17"
 
   EventRole:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - LambdaFunction
-      - CloudwatchEvent
+    - LambdaFunction
+    - CloudwatchEvent
     Properties:
       Action: "lambda:InvokeFunction"
       FunctionName: !Ref LambdaFunction
@@ -219,6 +219,6 @@ Resources:
       ScheduleExpression: "cron(0-05 3,4,19,21 ? * MON-FRI *)"
       State: "ENABLED"
       Targets:
-        -
-          Arn: !GetAtt LambdaFunction.Arn
-          Id: "TargetFunctionV1"
+      -
+        Arn: !GetAtt LambdaFunction.Arn
+        Id: "TargetFunctionV1"
