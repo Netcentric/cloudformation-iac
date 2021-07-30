@@ -269,9 +269,9 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref VpcCidr
-      InstanceTenancy: "default"
       EnableDnsSupport: true
       EnableDnsHostnames: true
+      InstanceTenancy: "default"
       Tags:
         - Key: "Name"
           Value: !Sub "${RootStackName}-vpc"

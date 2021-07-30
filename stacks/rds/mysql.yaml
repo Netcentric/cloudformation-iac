@@ -187,7 +187,6 @@ Resources:
       AllocatedStorage: 100
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: false
-      MultiAZ: true
       BackupRetentionPeriod: 15
       DBInstanceClass: !Ref DBInstanceClass
       DBInstanceIdentifier: !Sub "${RootStackName}-mysql-instance-${Designation}"
@@ -200,6 +199,7 @@ Resources:
       EngineVersion: !Ref DBInstanceEngineVersion
       MasterUsername: "root"
       MasterUserPassword: !Sub "{{resolve:ssm-secure:${MasterUserPasswordSsmSecureName}:${MasterUserPasswordSsmSecureVersion}}}"
+      MultiAZ: true
       Port: !Ref DBInstancePort
       PreferredBackupWindow: "02:30-03:00"
       PreferredMaintenanceWindow: "Mon:03:30-Mon:04:30"
