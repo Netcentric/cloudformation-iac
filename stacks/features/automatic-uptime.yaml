@@ -45,11 +45,11 @@ Resources:
       AssumeRolePolicyDocument:
         Statement:
         - Action:
-          - sts:AssumeRole
-          Effect: Allow
+          - "sts:AssumeRole"
+          Effect: "Allow"
           Principal:
             Service:
-            - lambda.amazonaws.com
+            - "lambda.amazonaws.com"
       Policies:
       - PolicyName: "ec2SchedulerPermissions"
         PolicyDocument:
