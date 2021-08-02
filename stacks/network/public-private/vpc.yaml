@@ -38,6 +38,7 @@ Metadata:
         default: "Network configuration"
       Parameters:
       - InternetAccess
+      - PeerRequesterAccounts
       - VpcCidr
       - VpcWideDmz
     - Label:
@@ -92,6 +93,11 @@ Parameters:
     Type: String
     AllowedValues: [ "disabled", "enabled" ]
     Default: "enabled"
+
+  PeerRequesterAccounts:
+    Description: "A list of AWS accounts that should be able to create peerings with the VPC created by this template (e.g. \"1234567890, 987654321098\")."
+    Type: CommaDelimitedList
+    Default: ""
 
   VpcCidr:
     Description: "Private IP class for VPC (e.g. 10.31.0.0/22)."
@@ -248,6 +254,12 @@ Conditions:
   # If the VPC wide DMZ should be enabled, we will do so
   EnableDmz: !Equals [ !Ref VpcWideDmz, "enabled" ]
 
+  # If no accounts have been specified, we don't need to create the required resources
+  HasPeerRequesterAccounts: !Not
+    - !Equals
+      - !Join [ "", !Ref PeerRequesterAccounts ]
+      - ""
+
 
 ################################################################################
 #
@@ -378,6 +390,35 @@ Resources:
       - Key: "Name"
         Value: !Sub "${RootStackName}-rt-public"
       VpcId: !Ref Vpc
+
+  #=======================================
+  # Cross-account peering
+  #=======================================
+
+  # See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/peer-with-vpc-in-another-account.html
+  PeerRole:
+    Condition: HasPeerRequesterAccounts
+    Type: AWS::IAM::Role
+    Properties:
+      Description: !Sub "Role to allow other AWS accounts to peer with the VPC \"${RootStackName}-vpc\"."
+      # Allow the PeerRequesterAccountId to assume this role
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            AWS: !Ref PeerRequesterAccounts
+      Policies:
+      # Allow the owners of this role to accept VPC peering connection requests with the VPC created by this template
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - "ec2:AcceptVpcPeeringConnection"
+            Effect: "Allow"
+            Resource: "*"
+          Version: "2012-10-17"
+        PolicyName: !Sub "${RootStackName}-pol-allow-accept-vpc-peering"
 
   #=======================================
   # VPN access
@@ -569,3 +610,12 @@ Outputs:
     Condition: UseAz3
     Description: "Az3.PublicSubnet"
     Value: !GetAtt Az3.Outputs.PublicSubnet
+
+  #----------------------------
+  # Cross-account peering
+  #----------------------------
+
+  PeerRoleArn:
+    Condition: HasPeerRequesterAccounts
+    Description: "The Amazon Resource Name (ARN) of the VPC peer role. This is required when you are peering with this VPC from a different AWS account."
+    Value: !GetAtt PeerRole.Arn

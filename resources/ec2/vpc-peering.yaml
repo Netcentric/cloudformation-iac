@@ -37,6 +37,9 @@ Metadata:
         Parameters:
         - PeerVpcCidr
         - PeerVpcId
+        - PeerVpcOwner
+        - PeerVpcRegion
+        - PeerVpcRoleArn
         - PeerVpcRouteTables
         - PeerVpcRouteTablesCount
 
@@ -96,16 +99,33 @@ Parameters:
 
   PeerVpcId:
     Description: "The ID of the accepter VPC."
-    Type: AWS::EC2::VPC::Id
+    Type: String
+
+  PeerVpcOwner:
+    Description: "The AWS account of the accepter VPC; required only if the accepter VPC is not in the same account (example: \"123456789012\")."
+    Type: String
+    Default: ""
+
+  PeerVpcRegion:
+    Description: "The region of accepter VPC; defaults to the region this template is executed in (example: \"eu-central-1\")."
+    Type: String
+    Default: ""
+
+  PeerVpcRoleArn:
+    Description: "The ARN of an IAM Role, used to automatically accept the VPC peering request."
+    Type: String
+    Default: ""
 
   PeerVpcRouteTables:
     Description: "The IDs of Route Tables in the accepter VPC where Routes to the Peering Connection should be added. Only used if the accepter VPC is in the same account; must be as many items as specified in \"PeerVpcRouteTablesCount\"."
     Type: CommaDelimitedList
+    Default: ""
 
   PeerVpcRouteTablesCount:
     Description: "The number of Route Tables provided for the accepter VPC."
     Type: Number
-    AllowedValues: [ 1, 2, 3 ]
+    AllowedValues: [ 0, 1, 2, 3 ]
+    Default: 0
 
 
 ################################################################################
@@ -134,13 +154,35 @@ Conditions:
   # Accepter VPC
   #----------------------------
 
+  # Create Route #1 if the accepter VPC is in the same account and enough Route Tables have been provided
+  CreatePeerRoute1: !Or
+    - !And
+      - !Condition IsLocalPeering
+      - !Equals [ !Ref PeerVpcRouteTablesCount, 1 ]
+    - !Condition CreatePeerRoute2
+
   # Create Route #2 if the accepter VPC is in the same account and enough Route Tables have been provided
   CreatePeerRoute2: !Or
-    - !Equals [ !Ref PeerVpcRouteTablesCount, 2 ]
+    - !And
+      - !Condition IsLocalPeering
+      - !Equals [ !Ref PeerVpcRouteTablesCount, 2 ]
     - !Condition CreatePeerRoute3
 
   # Create Route #3 if the accepter VPC is in the same account and enough Route Tables have been provided
-  CreatePeerRoute3: !Equals [ !Ref PeerVpcRouteTablesCount, 3 ]
+  CreatePeerRoute3: !And
+    - !Condition IsLocalPeering
+    - !Equals [ !Ref PeerVpcRouteTablesCount, 3 ]
+
+  # Whether a region has been specified for the accepter VPC or not
+  HasPeerVpcRegion: !Not
+    - !Equals [ !Ref PeerVpcRegion, "" ]
+
+  # Whether the peering should be established automatically or not
+  IsAutomatedPeering: !Not
+    - !Equals [ !Ref PeerVpcRoleArn, "" ]
+
+  # Whether the accepter VPC is in the same account or not
+  IsLocalPeering: !Equals [ !Ref PeerVpcOwner, "" ]
 
 
 ################################################################################
@@ -163,8 +205,23 @@ Resources:
       PeerVpcId: !Ref PeerVpcId
       Tags:
       - Key: "Name"
-        Value: !Sub "${RequestingVpcName} <-> ${PeerVpcName}"
+        Value: !If
+          - IsLocalPeering
+          - !Sub "${RequestingVpcName} <-> ${PeerVpcName}"
+          - !Sub "${RequestingVpcName} <-> ${PeerVpcName} (${PeerVpcOwner})"
       VpcId: !Ref RequestingVpcId
+      PeerOwnerId: !If
+        - IsLocalPeering
+        - !Ref AWS::NoValue
+        - !Ref PeerVpcOwner
+      PeerRoleArn: !If
+        - IsAutomatedPeering
+        - !Ref PeerVpcRoleArn
+        - !Ref AWS::NoValue
+      PeerRegion: !If
+        - HasPeerVpcRegion
+        - !Ref PeerVpcRegion
+        - !Ref AWS::Region
 
   #----------------------------
   # Add Routes in the requester VPC
@@ -198,6 +255,7 @@ Resources:
   #----------------------------
 
   PeerRoute1:
+    Condition: CreatePeerRoute1
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: !Ref RequestingVpcCidr
