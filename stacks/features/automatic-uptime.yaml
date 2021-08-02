@@ -98,7 +98,6 @@ Resources:
         ZipFile: |
           'use strict';
           const aws = require('aws-sdk');
-          aws.config.update({region: 'eu-central-1'});
           const ec2 = new aws.EC2();
 
           function getKey(keys, instance) {
