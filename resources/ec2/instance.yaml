@@ -474,6 +474,9 @@ Resources:
 
                 set -euo pipefail
 
+                # PID file to prevent parallel executions of this script
+                PID_FILE="/var/run/$(basename $0).pid"
+
                 # extra optional settings
                 AWS_CLI_EXTRA_OPTS=()
 
@@ -492,6 +495,13 @@ Resources:
                     export OCM_SERVER=${TAG_SERVER}
                   fi
 
+                  # If no OCM Server is specified, there's nothing to do for us. Clean up and stop
+                  if [ -z ${OCM_SERVER} ]; then
+                    echo "OCM_SERVER not specified, exiting"
+                    rm -f /etc/cron.d/bootstrap-puppet-starter
+                    exit 0
+                  fi
+
                   if [ -n ${TAG_REGION} ] && [ ! -z ${TAG_REGION} ]; then
                     export OCM_REGION=${TAG_REGION}
                   else
@@ -508,21 +518,53 @@ Resources:
                   export DAEMONSPLAY='true'
                   export SPLAYLIMIT='180'
                   export PUPPET_CA_PATH='/etc/puppetlabs/puppet/ssl/certs/ca.pem'
+
+                  # If we cannot get determine PUPPETSERVER, we stop here and try again later (thanks to the cron job).
+                  if [ -z ${PUPPETSERVER} ]; then
+                    echo "PUPPETSERVER cannot be determined, exiting"
+                    exit 0
+                  fi
+
+                  # If we cannot get reach PUPPETSERVER, we stop here and try again later (thanks to the cron job).
+                  if ! ping -c 1 ${PUPPETSERVER} &> /dev/null; then
+                    echo "'${PUPPETSERVER}' unreachable, exiting"
+                    exit 0
+                  fi
                 }
 
                 function prepare_puppet {
+                  LOCK_FILE="/opt/puppetlabs/puppet/cache/state/agent_disabled.lock"
+
+                  # If the agent is disabled, skip this run
+                  if [[ -f "${LOCK_FILE}" ]]; then
+                    echo "'${LOCK_FILE}' exists, exiting"
+                    exit 0
+                  fi
+
                   mkdir -p /opt/puppetlabs/puppet/cache/state
                   mkdir -p /etc/puppetlabs/puppet/ssl/certs/
                   mkdir -p /etc/puppetlabs/code/modules/
 
-                  echo "{\"disabled_message\":\"Locked by OpsWorks Deploy - $(date --iso-8601=seconds)\"}" > /opt/puppetlabs/puppet/cache/state/agent_disabled.lock
+                  echo "{\"disabled_message\":\"Locked by OpsWorks Deploy - $(date --iso-8601=seconds)\"}" > "${LOCK_FILE}"
                 }
 
                 function establish_trust {
+                  # If the cert exists, skip this step
+                  if [[ -f "${PUPPET_CA_PATH}" ]]; then
+                    echo "'${PUPPET_CA_PATH}' exists, skipping function 'establish_trust'"
+                    return 0
+                  fi
+
                   /usr/local/aws/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > /etc/puppetlabs/puppet/ssl/certs/ca.pem
                 }
 
                 function install_puppet {
+                  # If Puppet is installed, skip this step
+                  if [[ -f "${PUPPET}" ]]; then
+                    echo "Puppet already installed, skipping function 'install_puppet'"
+                    return 0
+                  fi
+
                   ADD_EXTENSIONS=$(generate_csr_attributes)
                   curl --cacert /etc/puppetlabs/puppet/ssl/certs/ca.pem --retry 3 "https://${PUPPETSERVER}:8140/packages/current/install.bash" | \
                     /bin/bash -s agent:certname=${PP_INSTANCE_ID} \
@@ -537,8 +579,8 @@ Resources:
                 function generate_csr_attributes {
                   pp_tags=$(/usr/local/aws/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?starts_with(Key, `pp_`)].[Key,Value]' --output text | sed s/[[:blank:]]/=/)
                   if [ -z ${pp_tags} ]; then
-                    # couldn't describe tags, check permissions in the IAM role
-                    return 0
+                    echo "Couldn't describe tags (check permissions in the IAM role), skipping function 'generate_csr_attributes'"
+                    return 1
                   fi
 
                   csr_attrs=""
@@ -568,6 +610,12 @@ Resources:
                   PP_CSR_PATH="${SSLDIR}/certificate_requests/${CERTNAME}.pem"
                   PP_CERT_PATH="${SSLDIR}/certs/${CERTNAME}.pem"
 
+                  # If the nodes certificate already exists, skip this step
+                  if [[ -f "${PP_CERT_PATH}" ]]; then
+                    echo "'${PP_CERT_PATH}' already exists, skipping function 'associate_node'"
+                    return 0
+                  fi
+
                   # clear out extraneous certs and generate a new one
                   ${PUPPET} bootstrap purge
                   ${PUPPET} bootstrap csr
@@ -589,6 +637,18 @@ Resources:
                   ${PUPPET} agent --onetime --verbose --no-daemonize --no-usecacheonfailure --no-splay --show_diff
                   ${PUPPET} resource service puppet ensure=running enable=true
                 }
+
+                # Check for existence of the PID file to prevent parallel executions of this script
+                if [[ -f "${PID_FILE}" ]]; then
+                  echo "'${PID_FILE}' exists, exiting"
+                  exit 0
+                fi
+
+                # Ensure PID file is removed on program exit.
+                trap "rm -f -- '${PID_FILE}'" EXIT
+
+                # Create a file with current PID to indicate that process is running.
+                echo $$ > "${PID_FILE}"
 
                 # order of execution of functions
                 set_aws_settings
