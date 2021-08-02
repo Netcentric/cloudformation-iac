@@ -53,6 +53,7 @@ Metadata:
       Parameters:
       - DeregistrationDelay
       - EnableHttp2
+      - IdleTimeout
       - Scheme
       - SecurityGroupIds
       - StickinessDuration
@@ -135,6 +136,11 @@ Parameters:
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "true"
+
+  IdleTimeout:
+    Description: "The idle timeout value, in seconds. The valid range is 1-4000 seconds."
+    Type: String
+    Default: "60"
 
   Scheme:
     Description: "Internet-facing Load Balancers can route requests from clients over the Internet, internal Load Balancers can only route requests from clients with access to the VPC for the Load Balancer."
@@ -332,6 +338,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       LoadBalancerAttributes:
+      - Key: "idle_timeout.timeout_seconds"
+        Value: !Ref IdleTimeout
       - Key: "routing.http2.enabled"
         Value: !Ref EnableHttp2
       Scheme: !Ref Scheme
