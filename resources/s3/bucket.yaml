@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- S3 Bucket."
+
+################################################################################
+#
+# Decision Trees:
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+      - RootStackName
+    - Label:
+        default: "Additional features"
+      Parameters:
+      - FeaturePredictableName
+    - Label:
+        default: "Bucket configuration"
+      Parameters:
+      - AccessControl
+      - MultipartExpiration
+      - Versioning
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  Designation:
+    Description: "A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number)."
+    Type: String
+
+  RootStackName:
+    Description: "The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: \"assets-dev\" or \"sites-prod\")."
+    Type: String
+
+  #=======================================
+  # Additional features
+  #=======================================
+
+  FeaturePredictableName:
+    Description: "Wether the Bucket should get a predictable name or a generated one (see: AWS::S3::Bucket -> BucketName)."
+    Type: String
+    AllowedValues: [ "disabled", "enabled" ]
+    Default: "disabled"
+
+  #=======================================
+  # Bucket configuration
+  #=======================================
+
+  AccessControl:
+    Description: "A canned access control list (ACL) that grants predefined permissions to the bucket."
+    Type: String
+    AllowedValues: [ "AuthenticatedRead", "AwsExecRead", "BucketOwnerRead", "BucketOwnerFullControl", "LogDeliveryWrite", "Private", "PublicRead", "PublicReadWrite" ]
+    Default: "Private"
+
+  BlockPublicAccess:
+    Description: "Enable blocking of all public access to this bucket."
+    Type: String
+    AllowedValues: [ "disabled", "enabled" ]
+    Default: "enabled"
+
+  MultipartExpiration:
+    Description: "The number of days after which Amazon S3 stops an incomplete multipart upload."
+    Type: Number
+    Default: 0
+
+  Versioning:
+    Description: "Enables multiple versions of all objects in this bucket. You might enable versioning to prevent objects from being deleted or overwritten by mistake or to archive objects so that you can retrieve previous versions of them."
+    Type: String
+    AllowedValues: [ "enabled", "suspended" ]
+    Default: "suspended"
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+
+  # Whether the Public Access Block should be configured or not
+  EnablePublicAccessBlockConfiguration: !Equals [ !Ref BlockPublicAccess, "enabled" ]
+
+  # Whether the Buckets Lifecycle should be configured or not
+  EnableLifecycleConfiguration: !Condition EnableMultipartUploadLifecycle
+
+  # Whether the Multipart Upload should be configured or not
+  EnableMultipartUploadLifecycle: !Not
+    - !Equals [ !Ref MultipartExpiration, 0 ]
+
+  # Wether the Bucket should get a predictable name (-> BucketName) or a generated one
+  EnablePredictableName: !Equals [ !Ref FeaturePredictableName, "enabled" ]
+
+  # Whether Versioning of all objects should be enabled or not
+  EnableVersioning: !Equals [ !Ref Versioning , "enabled" ]
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: !Ref AccessControl
+      BucketName: !If
+        - EnablePredictableName
+        - !Sub "${RootStackName}-bucket-${Designation}"
+        - !Ref AWS::NoValue
+      LifecycleConfiguration: !If
+        - EnableLifecycleConfiguration
+        - Rules:
+          - !If
+            - EnableMultipartUploadLifecycle
+            - AbortIncompleteMultipartUpload:
+                DaysAfterInitiation: !Ref MultipartExpiration
+              Id: "MultipartUploadCleanup"
+              Status: "Enabled"
+            - !Ref AWS::NoValue
+        - !Ref AWS::NoValue
+      PublicAccessBlockConfiguration: !If
+        - EnablePublicAccessBlockConfiguration
+        - BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        - !Ref AWS::NoValue
+      Tags:
+      - Key: Name
+        Value: !Sub "${RootStackName}-bucket-${Designation}"
+      VersioningConfiguration: !If
+        - EnableVersioning
+        - Status: "Enabled"
+        - !Ref AWS::NoValue
+
+  ManagedPolicyAccessReadOnly:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub "Allows the owners of this Policy to read from the S3 Bucket \"${Bucket}\""
+      ManagedPolicyName: !Sub "${RootStackName}-pol-bucket-${Designation}-ro-access"
+      PolicyDocument:
+        Statement:
+        - Action:
+          - "s3:GetObject"
+          - "s3:ListObject"
+          Effect: "Allow"
+          Resource:
+          - !GetAtt Bucket.Arn
+          - !Sub "${Bucket.Arn}/*"
+        Version: "2012-10-17"
+
+  # See: https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/
+  ManagedPolicyAccessReadWrite:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub "Allows the owners of this Policy to read from and write to the S3 Bucket \"${Bucket}\""
+      ManagedPolicyName: !Sub "${RootStackName}-pol-bucket-${Designation}-rw-access"
+      PolicyDocument:
+        Statement:
+        - Action:
+          - "s3:DeleteObject"
+          - "s3:GetObject"
+          - "s3:ListBucket"
+          - "s3:PutObject"
+          Effect: "Allow"
+          Resource:
+          - !GetAtt Bucket.Arn
+          - !Sub "${Bucket.Arn}/*"
+        Version: "2012-10-17"
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+
+  BucketArn:
+    Description: "The ARN of this S3 Bucket."
+    Value: !GetAtt Bucket.Arn
+
+  BucketName:
+    Description: "The name of this S3 Bucket."
+    Value: !Ref Bucket
+
+  ReadOnlyAccessPolicy:
+    Description: "The ARN of the IAM Managed Policy that needs to be assigned in order to grant read access to this S3 Bucket."
+    Value: !Ref ManagedPolicyAccessReadOnly
+
+  ReadWriteAccessPolicy:
+    Description: "The ARN of the IAM Managed Policy that needs to be assigned in order to grant read/write access to this S3 Bucket."
+    Value: !Ref ManagedPolicyAccessReadWrite
