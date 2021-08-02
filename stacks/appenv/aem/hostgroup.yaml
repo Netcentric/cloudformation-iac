@@ -51,12 +51,15 @@ Metadata:
       - AuthorSecurityGroupIds
       - AuthorVolumeOptIops
       - AuthorVolumeOptSize
+      - AuthorVolumeOptThroughput
       - AuthorVolumeOptType
       - AuthorVolumeTmpIops
       - AuthorVolumeTmpSize
+      - AuthorVolumeTmpThroughput
       - AuthorVolumeTmpType
       - AuthorVolumeVarIops
       - AuthorVolumeVarSize
+      - AuthorVolumeVarThroughput
       - AuthorVolumeVarType
     - Label:
         default: "Author Dispatcher (optional)"
@@ -66,6 +69,7 @@ Metadata:
       - AuthorDispatcherSecurityGroupIds
       - AuthorDispatcherVolumeVarIops
       - AuthorDispatcherVolumeVarSize
+      - AuthorDispatcherVolumeVarThroughput
       - AuthorDispatcherVolumeVarType
     - Label:
         default: "Publish"
@@ -75,12 +79,15 @@ Metadata:
       - PublishSecurityGroupIds
       - PublishVolumeOptIops
       - PublishVolumeOptSize
+      - PublishVolumeOptThroughput
       - PublishVolumeOptType
       - PublishVolumeTmpIops
       - PublishVolumeTmpSize
+      - PublishVolumeTmpThroughput
       - PublishVolumeTmpType
       - PublishVolumeVarIops
       - PublishVolumeVarSize
+      - PublishVolumeVarThroughput
       - PublishVolumeVarType
     - Label:
         default: "Publish Dispatcher (optional)"
@@ -90,6 +97,7 @@ Metadata:
       - PublishDispatcherSecurityGroupIds
       - PublishDispatcherVolumeVarIops
       - PublishDispatcherVolumeVarSize
+      - PublishDispatcherVolumeVarThroughput
       - PublishDispatcherVolumeVarType
     - Label:
         default: "DNS Record configuration (optional)"
@@ -190,6 +198,11 @@ Parameters:
     Type: Number
     Default: 0
 
+  AuthorVolumeOptThroughput:
+    Description: "The throughput of the \"/opt\" Volume of the Author Instance, in MiB/s (only used if AuthorVolumeOptType is set to \"gp3\")."
+    Type: Number
+    Default: 0
+
   AuthorVolumeOptType:
     Description: "The Volume type of the \"/opt\" Volume of the Author Instance (if you set the type to \"io1\" or \"io2\", you must also set the AuthorVolumeOptIops property)."
     Type: String
@@ -206,6 +219,11 @@ Parameters:
     Type: Number
     Default: 0
 
+  AuthorVolumeTmpThroughput:
+    Description: "The throughput of the \"/tmp\" Volume of the Author Instance, in MiB/s (only used if AuthorVolumeTmpType is set to \"gp3\")."
+    Type: Number
+    Default: 0
+
   AuthorVolumeTmpType:
     Description: "The Volume type of the \"/tmp\" Volume of the Author Instance (if you set the type to \"io1\" or \"io2\", you must also set the AuthorVolumeTmpIops property)."
     Type: String
@@ -219,6 +237,11 @@ Parameters:
 
   AuthorVolumeVarSize:
     Description: "The size of the \"/var\" Volume of the Author Instance, in gibibytes (if this value is 0 the volume will not be created)."
+    Type: Number
+    Default: 0
+
+  AuthorVolumeVarThroughput:
+    Description: "The throughput of the \"/var\" Volume of the Author Instance, in MiB/s (only used if AuthorVolumeVarType is set to \"gp3\")."
     Type: Number
     Default: 0
 
@@ -257,6 +280,11 @@ Parameters:
     Type: Number
     Default: 0
 
+  AuthorDispatcherVolumeVarThroughput:
+    Description: "The throughput of the \"/var\" Volume of the Author Dispatcher Instance, in MiB/s (only used if AuthorDispatcherVolumeVarType is set to \"gp3\")."
+    Type: Number
+    Default: 0
+
   AuthorDispatcherVolumeVarType:
     Description: "The Volume type of the \"/var\" Volume of the Author Dispatcher Instance (if you set the type to \"io1\" or \"io2\", you must also set the AuthorDispatcherVolumeVarIops property)."
     Type: String
@@ -291,6 +319,11 @@ Parameters:
     Type: Number
     Default: 0
 
+  PublishVolumeOptThroughput:
+    Description: "The throughput of the \"/opt\" Volume of the Publish Instance, in MiB/s (only used if PublishVolumeOptType is set to \"gp3\")."
+    Type: Number
+    Default: 0
+
   PublishVolumeOptType:
     Description: "The Volume type of the \"/opt\" Volume of the Publish Instance (if you set the type to \"io1\" or \"io2\", you must also set the PublishVolumeOptIops property)."
     Type: String
@@ -307,6 +340,11 @@ Parameters:
     Type: Number
     Default: 0
 
+  PublishVolumeTmpThroughput:
+    Description: "The throughput of the \"/tmp\" Volume of the Publish Instance, in MiB/s (only used if PublishVolumeTmpType is set to \"gp3\")."
+    Type: Number
+    Default: 0
+
   PublishVolumeTmpType:
     Description: "The Volume type of the \"/tmp\" Volume of the Publish Instance (if you set the type to \"io1\" or \"io2\", you must also set the PublishVolumeTmpIops property)."
     Type: String
@@ -320,6 +358,11 @@ Parameters:
 
   PublishVolumeVarSize:
     Description: "The size of the \"/var\" Volume of the Publish Instance, in gibibytes (if this value is 0 the volume will not be created)."
+    Type: Number
+    Default: 0
+
+  PublishVolumeVarThroughput:
+    Description: "The throughput of the \"/var\" Volume of the Publish Instance, in MiB/s (only used if PublishVolumeVarType is set to \"gp3\")."
     Type: Number
     Default: 0
 
@@ -355,6 +398,11 @@ Parameters:
 
   PublishDispatcherVolumeVarSize:
     Description: "The size of the \"/var\" Volume of the Publish Dispatcher Instance, in gibibytes (if this value is 0 the volume will not be created)."
+    Type: Number
+    Default: 0
+
+  PublishDispatcherVolumeVarThroughput:
+    Description: "The throughput of the \"/var\" Volume of the Publish Dispatcher Instance, in MiB/s (only used if PublishDispatcherVolumeVarType is set to \"gp3\")."
     Type: Number
     Default: 0
 
@@ -452,6 +500,7 @@ Resources:
         VolumeOptEncryption: !Ref FeatureVolumeEncryption
         VolumeOptIops: !Ref AuthorVolumeOptIops
         VolumeOptSize: !Ref AuthorVolumeOptSize
+        VolumeOptThroughput: !Ref AuthorVolumeOptThroughput
         VolumeOptType: !Ref AuthorVolumeOptType
 
         # /tmp (optional)
@@ -459,6 +508,7 @@ Resources:
         VolumeTmpEncryption: !Ref FeatureVolumeEncryption
         VolumeTmpIops: !Ref AuthorVolumeTmpIops
         VolumeTmpSize: !Ref AuthorVolumeTmpSize
+        VolumeTmpThroughput: !Ref AuthorVolumeTmpThroughput
         VolumeTmpType: !Ref AuthorVolumeTmpType
 
         # /var (optional)
@@ -466,6 +516,7 @@ Resources:
         VolumeVarEncryption: !Ref FeatureVolumeEncryption
         VolumeVarIops: !Ref AuthorVolumeVarIops
         VolumeVarSize: !Ref AuthorVolumeVarSize
+        VolumeVarThroughput: !Ref AuthorVolumeVarThroughput
         VolumeVarType: !Ref AuthorVolumeVarType
 
         # DNS Record configuration (optional)
@@ -508,6 +559,7 @@ Resources:
         VolumeVarEncryption: !Ref FeatureVolumeEncryption
         VolumeVarIops: !Ref AuthorDispatcherVolumeVarIops
         VolumeVarSize: !Ref AuthorDispatcherVolumeVarSize
+        VolumeVarThroughput: !Ref AuthorDispatcherVolumeVarThroughput
         VolumeVarType: !Ref AuthorDispatcherVolumeVarType
 
         # DNS Record configuration (optional)
@@ -553,6 +605,7 @@ Resources:
         VolumeOptEncryption: !Ref FeatureVolumeEncryption
         VolumeOptIops: !Ref PublishVolumeOptIops
         VolumeOptSize: !Ref PublishVolumeOptSize
+        VolumeOptThroughput: !Ref PublishVolumeOptThroughput
         VolumeOptType: !Ref PublishVolumeOptType
 
         # /tmp (optional)
@@ -560,6 +613,7 @@ Resources:
         VolumeTmpEncryption: !Ref FeatureVolumeEncryption
         VolumeTmpIops: !Ref PublishVolumeTmpIops
         VolumeTmpSize: !Ref PublishVolumeTmpSize
+        VolumeTmpThroughput: !Ref PublishVolumeTmpThroughput
         VolumeTmpType: !Ref PublishVolumeTmpType
 
         # /var (optional)
@@ -567,6 +621,7 @@ Resources:
         VolumeVarEncryption: !Ref FeatureVolumeEncryption
         VolumeVarIops: !Ref PublishVolumeVarIops
         VolumeVarSize: !Ref PublishVolumeVarSize
+        VolumeVarThroughput: !Ref PublishVolumeVarThroughput
         VolumeVarType: !Ref PublishVolumeVarType
 
         # DNS Record configuration (optional)
@@ -609,6 +664,7 @@ Resources:
         VolumeVarEncryption: !Ref FeatureVolumeEncryption
         VolumeVarIops: !Ref PublishDispatcherVolumeVarIops
         VolumeVarSize: !Ref PublishDispatcherVolumeVarSize
+        VolumeVarThroughput: !Ref PublishDispatcherVolumeVarThroughput
         VolumeVarType: !Ref PublishDispatcherVolumeVarType
 
         # DNS Record configuration (optional)
