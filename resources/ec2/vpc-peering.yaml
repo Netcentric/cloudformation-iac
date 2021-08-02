@@ -23,22 +23,22 @@ Metadata:
       - Label:
           default: "Naming details"
         Parameters:
-          - PeerVpcName
-          - RequestingVpcName
+        - PeerVpcName
+        - RequestingVpcName
       - Label:
           default: "Requesting VPC"
         Parameters:
-          - RequestingVpcCidr
-          - RequestingVpcId
-          - RequestingVpcRouteTables
-          - RequestingVpcRouteTablesCount
+        - RequestingVpcCidr
+        - RequestingVpcId
+        - RequestingVpcRouteTables
+        - RequestingVpcRouteTablesCount
       - Label:
           default: "Peer VPC"
         Parameters:
-          - PeerVpcCidr
-          - PeerVpcId
-          - PeerVpcRouteTables
-          - PeerVpcRouteTablesCount
+        - PeerVpcCidr
+        - PeerVpcId
+        - PeerVpcRouteTables
+        - PeerVpcRouteTablesCount
 
 
 ################################################################################
