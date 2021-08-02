@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Setup utilizing SNS and Lambda to enable the use of Hosted Zones in this account by CFTs run in other accounts"
+Description: "CloudFormation IaC --- Setup utilizing SNS and Lambda to enable the use of Hosted Zones in this account by CFTs run in other accounts"
 
 ################################################################################
 #
 # Decision Trees:
 #
 #   Encryption
-#     EnableEncryption == true && KmsMasterKeyId == ''
+#     EnableEncryption == true && KmsMasterKeyId == ""
 #       true  -> Create new KmsMasterKeyId
 #       false -> Use provided KmsMasterKeyId
 #
@@ -25,21 +25,21 @@ Description: "Setup utilizing SNS and Lambda to enable the use of Hosted Zones i
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - NameSuffix
-      - Label:
-          default: "General configuration"
-        Parameters:
-          - AuthorizedAccounts
-          - HostedZone
-      - Label:
-          default: "Feature: Encryption"
-        Parameters:
-          - FeatureEncryption
-          - KmsMasterKeyId
-          - KmsMasterKeyPrincipals
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+    - Label:
+        default: "General configuration"
+      Parameters:
+      - AuthorizedAccounts
+      - HostedZone
+    - Label:
+        default: "Feature: Encryption"
+      Parameters:
+      - FeatureEncryption
+      - KmsMasterKeyId
+      - KmsMasterKeyPrincipals
 
 
 ################################################################################
@@ -56,8 +56,8 @@ Parameters:
   # Naming details
   #----------------------------
 
-  NameSuffix:
-    Description: "A string used to tell the different Instances apart (examples: 'sites' or 'prod')."
+  Designation:
+    Description: "A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number)."
     Type: String
 
   #----------------------------
@@ -65,11 +65,11 @@ Parameters:
   #----------------------------
 
   AuthorizedAccounts:
-    Description: "A list of accounts that are allowed to create Route 53 Records (e.g. '1234567890, 987654321098')."
+    Description: "A list of AWS accounts that are allowed to create Route 53 Records (e.g. \"1234567890, 987654321098\")."
     Type: CommaDelimitedList
 
   HostedZone:
-    Description: "The ID of the Route 53 Hosted Zone in which Records will be created (e.g. 'ZXL85AOMNFJIZ')."
+    Description: "The ID of the Route 53 Hosted Zone in which Records will be created (e.g. \"ZXL85AOMNFJIZ\")."
     Type: String
 
   #----------------------------
@@ -83,12 +83,12 @@ Parameters:
     Default: "disabled"
 
   KmsMasterKeyId:
-    Description: "The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a custom CMK (e.g. '1234abcd-12ab-34cd-56ef-1234567890ab')."
+    Description: "The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a custom CMK (e.g. \"1234abcd-12ab-34cd-56ef-1234567890ab\")."
     Type: String
     Default: ""
 
   KmsMasterKeyPrincipals:
-    Description: "The AWS principals that are allowed to access and use the CMK (list of entries in the format 'arn:aws:iam::123456789012:user/MyIamUser')."
+    Description: "The AWS principals that are allowed to access and use the CMK (list of entries in the format \"arn:aws:iam::123456789012:user/MyIamUser\")."
     Type: CommaDelimitedList
     Default: ""
 
@@ -107,7 +107,7 @@ Conditions:
   # Features
   #----------------------------
 
-  # If encryption is set to 'enabled'
+  # If encryption is set to "enabled"
   EnableEncryption: !Equals [ !Ref FeatureEncryption, "enabled" ]
 
   #----------------------------
@@ -122,7 +122,7 @@ Conditions:
   # If AWS principals have been specified or not
   HasKmsMasterKeyPrincipals: !Not
     - !Equals
-      - !Join [ '', !Ref KmsMasterKeyPrincipals ]
+      - !Join [ "", !Ref KmsMasterKeyPrincipals ]
       - ""
 
 
@@ -144,10 +144,6 @@ Resources:
   ManageR53RecordLambda:
     Type: AWS::Lambda::Function
     Properties:
-      Description: !Sub "Lambda that is triggered by SNS and manages the Route 53 records for ${NameSuffix} (${HostedZone})."
-      Handler: index.lambda_handler
-      Role: !GetAtt ManageR53RecordRole.Arn
-      Runtime: python2.7
       Code:
         ZipFile: !Sub |
           import sys, boto3, json, urllib, urllib2, json
@@ -238,32 +234,35 @@ Resources:
             request.get_method = lambda: 'PUT'
 
             url = opener.open(request)
+      Description: !Sub "Lambda that is triggered by SNS and manages the Route 53 records for ${Designation} (${HostedZone})."
+      Handler: "index.lambda_handler"
+      Role: !GetAtt ManageR53RecordRole.Arn
+      Runtime: "python2.7"
 
   # Role permitting the Lambda to manipulate Route 53 records
   ManageR53RecordRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
         Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: "/"
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service:
+            - "lambda.amazonaws.com"
+        Version: "2012-10-17"
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
       Policies:
-        - PolicyName: Route53ChangeResourceRecordSets
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: arn:aws:route53:::hostedzone/*
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - "route53:ChangeResourceRecordSets"
+            Effect: "Allow"
+            Resource: "arn:aws:route53:::hostedzone/*"
+          Version: "2012-10-17"
+        PolicyName: "Route53ChangeResourceRecordSets"
 
   #=======================================
   # Set up SNS
@@ -281,91 +280,91 @@ Resources:
           - !Ref KmsMasterKeyId
         - !Ref AWS::NoValue
       Subscription:
-        - Endpoint: !GetAtt ManageR53RecordLambda.Arn
-          Protocol: lambda
+      - Endpoint: !GetAtt ManageR53RecordLambda.Arn
+        Protocol: "lambda"
 
   RequestR53RecordMasterKey:
     Condition: CreateKmsMasterKey
     Type: AWS::KMS::Key
     Properties:
-      Description: !Sub "Master key used to encrypt the remote DNS management SNS Topic for '${NameSuffix}' (${HostedZone})."
+      Description: !Sub "Master key used to encrypt the remote DNS management SNS Topic for \"${Designation}\" (${HostedZone})."
       KeyPolicy:
-        Version: '2012-10-17'
-        Id: auto-sns-1
+        Id: "auto-sns-1"
         Statement:
-          # Taken from the AWS documentation on the default key policy
-          # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default
-          - Sid: "Enable IAM User Permissions"
-            Effect: Allow
+        # Taken from the AWS documentation on the default key policy
+        # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default
+        - Action:
+          - "kms:*"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Resource: "*"
+          Sid: "Enable IAM User Permissions"
+        # Taken from the default key that AWS sets up when manually creating an encrypted topic
+        - Action:
+          - "kms:CreateGrant"
+          - "kms:Decrypt"
+          - "kms:DescribeKey"
+          - "kms:GenerateDataKey*"
+          - "kms:ListGrants"
+          Condition:
+            StringEquals:
+              kms:CallerAccount: !Ref AWS::AccountId
+              kms:ViaService: !Sub "sns.${AWS::Region}.amazonaws.com"
+          Effect: "Allow"
+          Principal:
+            AWS: "*"
+          Resource: "*"
+          Sid: "Allow access through SNS for all principals in the account that are authorized to use SNS"
+        # Attempt to fix the "KMSAccessDenied" error when managing DNS entries from within another account
+        # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
+        - !If
+          - HasKmsMasterKeyPrincipals
+          - Action:
+            - "kms:Encrypt"
+            - "kms:Decrypt"
+            - "kms:DescribeKey"
+            - "kms:GenerateDataKey*"
+            - "kms:ReEncrypt"
+            Effect: "Allow"
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
-            Action:
-              - kms:*
+              AWS: !Ref KmsMasterKeyPrincipals
             Resource: "*"
-          # Taken from the default key that AWS sets up when manually creating an encrypted topic
-          - Sid: Allow access through SNS for all principals in the account that are authorized to use SNS
-            Effect: Allow
-            Principal:
-              AWS: "*"
-            Action:
-              - kms:CreateGrant
-              - kms:Decrypt
-              - kms:DescribeKey
-              - kms:GenerateDataKey*
-              - kms:ListGrants
-            Resource: "*"
-            Condition:
-              StringEquals:
-                kms:CallerAccount: !Ref AWS::AccountId
-                kms:ViaService: !Sub "sns.${AWS::Region}.amazonaws.com"
-          # Attempt to fix the "KMSAccessDenied" error when managing DNS entries from within another account
-          # See: https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
-          - !If
-            - HasKmsMasterKeyPrincipals
-            - Sid: Allow use of the key for all principals
-              Effect: Allow
-              Principal:
-                AWS: !Ref KmsMasterKeyPrincipals
-              Action:
-                - kms:Encrypt
-                - kms:Decrypt
-                - kms:DescribeKey
-                - kms:GenerateDataKey*
-                - kms:ReEncrypt
-              Resource: "*"
-            - !Ref AWS::NoValue
+            Sid: "Allow use of the key for all principals"
+          - !Ref AWS::NoValue
+        Version: "2012-10-17"
 
   RequestR53RecordMasterKeyAlias:
     Condition: CreateKmsMasterKey
     Type: AWS::KMS::Alias
     Properties:
-      AliasName: !Sub "alias/RemoteDnsManagement/${NameSuffix}/${HostedZone}"
+      AliasName: !Sub "alias/RemoteDnsManagement/${Designation}/${HostedZone}"
       TargetKeyId: !Ref RequestR53RecordMasterKey
 
   # Allow the provided accounts to publish to the Topic (-> trigger the Lambda)
   RequestR53RecordPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
+      PolicyDocument:
+        Statement:
+        - Action:
+          - "sns:Publish"
+          Effect: "Allow"
+          Principal:
+            AWS: !Ref AuthorizedAccounts
+          Resource: !Ref RequestR53Record
+        Version: "2008-10-17"
       Topics:
         - !Ref RequestR53Record
-      PolicyDocument:
-        Version: "2008-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !Ref AuthorizedAccounts
-            Action:
-              - sns:Publish
-            Resource: !Ref RequestR53Record
 
   # Allow SNS to trigger the Lambda function
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
-      Action: lambda:InvokeFunction
-      Principal: sns.amazonaws.com
-      SourceArn: !Ref RequestR53Record
+      Action: "lambda:InvokeFunction"
       FunctionName: !GetAtt ManageR53RecordLambda.Arn
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref RequestR53Record
 
 
 ################################################################################
