@@ -334,7 +334,7 @@ Resources:
       LoadBalancerAttributes:
       - Key: "routing.http2.enabled"
         Value: !Ref EnableHttp2
-      Scheme: !Sub ${Scheme}
+      Scheme: !Ref Scheme
       SecurityGroups: !Ref SecurityGroupIds
       Subnets: !Ref SubnetIds
       Tags:

@@ -118,7 +118,7 @@ Resources:
     Condition: CreateLocalDnsRecord
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneName: !Ref HostedZoneName
+      HostedZoneName: !Sub "${HostedZoneName}."
       Name: !Sub "${DnsName}.${HostedZoneName}"
       ResourceRecords:
       - !Ref Target

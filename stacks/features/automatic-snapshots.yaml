@@ -133,5 +133,5 @@ Resources:
             Count: !Ref RetainCount
         TargetTags:
         - Key: "AutomaticSnapshots"
-          Value: !Sub "${ScheduleName}"
+          Value: !Ref ScheduleName
       State: "ENABLED"

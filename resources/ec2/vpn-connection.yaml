@@ -317,7 +317,7 @@ Resources:
       CustomerGatewayId: !Ref CustomerGatewayId
       StaticRoutesOnly: !If
         # If we want to create one or more static routes, we need static routing
-        - CreateVgwRoute1
+        - CreateStaticVgwRoutes
         - true
         - false
       Tags:
