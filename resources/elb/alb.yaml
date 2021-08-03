@@ -1,12 +1,12 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'EC2 Application Load Balancer with optionally HTTP and/or HTTPS'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- EC2 Application Load Balancer with optionally HTTP and/or HTTPS"
 
 ################################################################################
 #
 # Decision Trees:
 #
 #   DNS entries:
-#     HostedZoneName != ''
+#     HostedZoneName != ""
 #       true  -> Created
 #       false -> None [default]
 #
@@ -24,7 +24,7 @@ Description: 'EC2 Application Load Balancer with optionally HTTP and/or HTTPS'
 #       false -> Disabled [default]
 #
 #   Targets:
-#     Instance<X>Id != ''
+#     Instance<X>Id != ""
 #       true  -> Added
 #       false -> None [default]
 #
@@ -43,63 +43,60 @@ Description: 'EC2 Application Load Balancer with optionally HTTP and/or HTTPS'
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: 'Naming details'
-        Parameters:
-          - RootStackName
-          - NameSuffix
-      - Label:
-          default: 'ALB configuration'
-        Parameters:
-          - Scheme
-          - SecurityGroupIds
-          - SubnetIds
-          - TargetHttpProtocol
-          - TargetPort
-          - VpcId
-      - Label:
-          default: 'ALB configuration (optional)'
-        Parameters:
-          - DeregistrationDelay
-          - EnableHttp2
-          - StickinessDuration
-      - Label:
-          default: 'ALB HTTP configuration (optional)'
-        Parameters:
-          - HttpPort
-      - Label:
-          default: 'ALB HTTPS configuration (optional)'
-        Parameters:
-          - HttpsPort
-          - SslCertificateArn
-      - Label:
-          default: 'Health check configuration (optional)'
-        Parameters:
-          - HealthCheckInterval
-          - HealthCheckPath
-          - HealthCheckProtocol
-          - HealthCheckTimeout
-          - HealthyStatusCode
-          - HealthyThresholdCount
-          - UnhealthyThresholdCount
-      - Label:
-          default: 'Target 01'
-        Parameters:
-          - Instance1Id
-      - Label:
-          default: 'Target 02 (optional)'
-        Parameters:
-          - Instance2Id
-      - Label:
-          default: 'Target 03 (optional)'
-        Parameters:
-          - Instance3Id
-      - Label:
-          default: 'DNS Record configuration (optional)'
-        Parameters:
-          - DnsServiceToken
-          - HostedZoneName
-          - TimeToLive
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - Designation
+      - RootStackName
+    - Label:
+        default: "ALB configuration"
+      Parameters:
+      - DeregistrationDelay
+      - EnableHttp2
+      - Scheme
+      - SecurityGroupIds
+      - StickinessDuration
+      - SubnetIds
+      - TargetPort
+      - TargetProtocol
+      - VpcId
+    - Label:
+        default: "ALB HTTP configuration (optional)"
+      Parameters:
+      - HttpPort
+    - Label:
+        default: "ALB HTTPS configuration (optional)"
+      Parameters:
+      - HttpsPort
+      - SslCertificateArn
+    - Label:
+        default: "Health check configuration (optional)"
+      Parameters:
+      - HealthCheckInterval
+      - HealthCheckPath
+      - HealthCheckProtocol
+      - HealthCheckTimeout
+      - HealthyStatusCode
+      - HealthyThresholdCount
+      - UnhealthyThresholdCount
+    - Label:
+        default: "Target 01"
+      Parameters:
+      - Instance1Id
+    - Label:
+        default: "Target 02 (optional)"
+      Parameters:
+      - Instance2Id
+    - Label:
+        default: "Target 03 (optional)"
+      Parameters:
+      - Instance3Id
+    - Label:
+        default: "DNS Record configuration (optional)"
+      Parameters:
+      - DnsServiceToken
+      - HostedZoneName
+      - TimeToLive
 
 
 ################################################################################
@@ -116,72 +113,68 @@ Parameters:
   # Naming details
   #=======================================
 
-  NameSuffix:
-    Description: 'A string used to tell the different ALBs apart (examples: "author" or "solr").'
+  Designation:
+    Description: "A string used to tell the resources created by different instances of this stack apart (for example its purpose or just a number)."
     Type: String
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "assets-dev" or "search-prod").'
+    Description: "The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: \"assets-dev\" or \"sites-prod\")."
     Type: String
 
   #=======================================
   # ALB configuration
   #=======================================
 
-  Scheme:
-    Description: 'Internet-facing Load Balancers can route requests from clients over the Internet, internal Load Balancers can only route requests from clients with access to the VPC for the Load Balancer.'
-    Type: String
-    AllowedValues: [ 'internet-facing', 'internal' ]
-    Default: 'internet-facing'
-
-  SecurityGroupIds:
-    Description: 'A list that contains the IDs for VPC Security Groups to assign to the Instance.'
-    Type: CommaDelimitedList
-
-  SubnetIds:
-    Description: 'The IDs of the Subnets that will be attached to the Load Balancer.'
-    Type: CommaDelimitedList
-
-  TargetPort:
-    Description: 'The port on which the targets receive traffic.'
-    Type: Number
-
-  TargetHttpProtocol:
-    Description: 'The port on which the Target Group should be created.'
-    Type: String
-    AllowedValues: [ 'HTTP', 'HTTPS' ]
-    Default: 'HTTP'
-
-  VpcId:
-    Description: 'The ID of the VPC in which the targets are located.'
-    Type: AWS::EC2::VPC::Id
-
-  #=======================================
-  # ALB configuration (optional)
-  #=======================================
-
   DeregistrationDelay:
-    Description: 'The amount of time, in seconds, for Elastic Load Balancing to wait before changing the state of a deregistering target from draining to unused (0 to 3600).'
+    Description: "The amount of time, in seconds, for Elastic Load Balancing to wait before changing the state of a deregistering target from draining to unused (0 to 3600)."
     Type: Number
     Default: 300
 
+  EnableHttp2:
+    Description: "Whether HTTP/2 should be enabled or disabled. If disabled, HTTP1.1 will be used exclusively."
+    Type: String
+    AllowedValues: [ "false", "true" ]
+    Default: "true"
+
+  Scheme:
+    Description: "Internet-facing Load Balancers can route requests from clients over the Internet, internal Load Balancers can only route requests from clients with access to the VPC for the Load Balancer."
+    Type: String
+    AllowedValues: [ "internet-facing", "internal" ]
+    Default: "internet-facing"
+
+  SecurityGroupIds:
+    Description: "A list that contains the IDs for VPC Security Groups to assign to the Load Balancer."
+    Type: CommaDelimitedList
+
   StickinessDuration:
-    Description: 'The time period, in seconds, during which requests from a client should be routed to the same target (0 to 604800).'
+    Description: "The time period, in seconds, during which requests from a client should be routed to the same target (0 to 604800)."
     Type: Number
     Default: 0
 
-  EnableHttp2:
-    Description: 'Whether HTTP/2 should be enabled or disabled. If disabled, HTTP1.1 will be used exclusively.'
+  SubnetIds:
+    Description: "The IDs of the Subnets that will be attached to the Load Balancer."
+    Type: CommaDelimitedList
+
+  TargetPort:
+    Description: "The port on which the targets receive traffic."
+    Type: Number
+
+  TargetProtocol:
+    Description: "The port on which the Target Group should be created."
     Type: String
-    AllowedValues: [ 'false', 'true' ]
-    Default: 'true'
+    AllowedValues: [ "HTTP", "HTTPS" ]
+    Default: "HTTP"
+
+  VpcId:
+    Description: "The ID of the VPC in which the targets are located."
+    Type: AWS::EC2::VPC::Id
 
   #=======================================
   # ALB HTTP configuration (optional)
   #=======================================
 
   HttpPort:
-    Description: 'The port on which the Load Balancer listens for HTTP requests (if zero, HTTP will be disabled).'
+    Description: "The port on which the Load Balancer listens for HTTP requests (if zero, HTTP will be disabled)."
     Type: Number
     Default: 80
 
@@ -190,52 +183,52 @@ Parameters:
   #=======================================
 
   HttpsPort:
-    Description: 'The port on which the Load Balancer listens for HTTPS requests (if zero, HTTPS will be disabled).'
+    Description: "The port on which the Load Balancer listens for HTTPS requests (if zero, HTTPS will be disabled)."
     Type: Number
     Default: 0
 
   SslCertificateArn:
-    Description: 'The Amazon Resource Name (ARN) of the certificate to associate with the HTTPS Listener.'
+    Description: "The Amazon Resource Name (ARN) of the certificate to associate with the HTTPS Listener."
     Type: String
-    Default: ''
+    Default: ""
 
   #=======================================
   # Health check configuration (optional)
   #=======================================
 
   HealthCheckInterval:
-    Description: 'The approximate number of seconds between health checks for an individual target.'
+    Description: "The approximate number of seconds between health checks for an individual target."
     Type: Number
     Default: 15
 
   HealthCheckPath:
-    Description: 'The HTTP codes that a healthy target must use when responding to a health check (examples: "200" or "200-399").'
+    Description: "The destination for health checks on the targets."
     Type: String
-    Default: '/'
+    Default: "/"
 
   HealthCheckProtocol:
-    Description: 'The protocol the load balancer uses when performing health checks on targets.'
+    Description: "The protocol the load balancer uses when performing health checks on targets."
     Type: String
-    AllowedValues: [ 'HTTP', 'HTTPS' ]
-    Default: 'HTTP'
+    AllowedValues: [ "HTTP", "HTTPS" ]
+    Default: "HTTP"
 
   HealthCheckTimeout:
-    Description: 'The HTTP codes that a healthy target must use when responding to a health check (examples: "200" or "200-399").'
+    Description: "The HTTP codes that a healthy target must use when responding to a health check (examples: \"200\" or \"200-399\")."
     Type: Number
-    Default: '5'
+    Default: "5"
 
   HealthyStatusCode:
-    Description: 'The HTTP codes that a healthy target must use when responding to a health check (examples: "200" or "200-399").'
+    Description: "The HTTP codes that a healthy target must use when responding to a health check (examples: \"200\" or \"200-399\")."
     Type: String
-    Default: '200'
+    Default: "200"
 
   HealthyThresholdCount:
-    Description: 'The number of consecutive health checks successes required before considering an unhealthy target healthy.'
+    Description: "The number of consecutive health checks successes required before considering an unhealthy target healthy."
     Type: Number
     Default: 5
 
   UnhealthyThresholdCount:
-    Description: 'The number of consecutive health check failures required before considering a target unhealthy.'
+    Description: "The number of consecutive health check failures required before considering a target unhealthy."
     Type: Number
     Default: 2
 
@@ -244,7 +237,7 @@ Parameters:
   #=======================================
 
   Instance1Id:
-    Description: 'The ID of the 1st EC2 Instance that will be included into the Load Balancer.'
+    Description: "The ID of the 1st EC2 Instance that will be included into the Load Balancer."
     Type: AWS::EC2::Instance::Id
 
   #=======================================
@@ -252,35 +245,35 @@ Parameters:
   #=======================================
 
   Instance2Id:
-    Description: 'The ID of the 2nd EC2 Instance that will be included into the Load Balancer.'
+    Description: "The ID of the 2nd EC2 Instance that will be included into the Load Balancer."
     Type: String
-    Default: ''
+    Default: ""
 
   #=======================================
   # Target 03 (optional)
   #=======================================
 
   Instance3Id:
-    Description: 'The ID of the 3rd EC2 Instance that will be included into the Load Balancer.'
+    Description: "The ID of the 3rd EC2 Instance that will be included into the Load Balancer."
     Type: String
-    Default: ''
+    Default: ""
 
   #=======================================
   # DNS Record configuration (optional)
   #=======================================
 
   DnsServiceToken:
-    Description: 'The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack).'
+    Description: "The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack)."
     Type: String
-    Default: ''
+    Default: ""
 
   HostedZoneName:
-    Description: 'The name of the domain for the Hosted Zone where the Record Sets should be added (if left empty, no DNS Record will be created; example: "my-project.example.com").'
+    Description: "The name of the domain for the Hosted Zone where the Record Sets should be added (if left empty, no DNS Record will be created; example: \"my-project.example.com\")."
     Type: String
-    Default: ''
+    Default: ""
 
   TimeToLive:
-    Description: 'The private DNS Records cache time to live (TTL), in seconds.'
+    Description: "The private DNS Records cache time to live (TTL), in seconds."
     Type: Number
     Default: 300
 
@@ -298,7 +291,7 @@ Conditions:
 
   # If a Hosted Zone has been provided, we will create a DNS Record
   CreateDnsRecord: !Not
-    - !Equals [ !Ref HostedZoneName, '' ]
+    - !Equals [ !Ref HostedZoneName, "" ]
 
   # If the HTTP port is 0, then HTTP will be disabled
   EnableHttp: !Not
@@ -314,20 +307,17 @@ Conditions:
 
   # If no 2nd Instance has been provided, we won't add a respective target
   Has2ndTarget: !Not
-    - !Equals [ !Ref Instance2Id, '' ]
+    - !Equals [ !Ref Instance2Id, "" ]
 
   # If no 3rd Instance has been provided, we won't add a respective target
   Has3rdTarget: !Not
-    - !Equals [ !Ref Instance3Id, '' ]
+    - !Equals [ !Ref Instance3Id, "" ]
 
 
 ################################################################################
 #
 # Resources (required)
 # Declares the AWS resources that you want to include in the stack
-#
-# Naming Conventions:
-#  - Name attribute: !Sub '${RootStackName}-<identifier>-${NameSuffix}'
 #
 # See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
 #
@@ -341,15 +331,15 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-alb-${NameSuffix}'
       LoadBalancerAttributes:
-        - Key: routing.http2.enabled
-          Value: !Ref EnableHttp2
-      Scheme: !Sub ${Scheme}
+      - Key: "routing.http2.enabled"
+        Value: !Ref EnableHttp2
+      Scheme: !Ref Scheme
       SecurityGroups: !Ref SecurityGroupIds
       Subnets: !Ref SubnetIds
+      Tags:
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-alb-${Designation}"
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -362,39 +352,39 @@ Resources:
       Matcher:
         HttpCode: !Ref HealthyStatusCode
       Port: !Ref TargetPort
-      Protocol: !Ref TargetHttpProtocol
+      Protocol: !Ref TargetProtocol
       Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-tg-${NameSuffix}'
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-tg-${Designation}"
       TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: !Ref DeregistrationDelay
-        - !If
-            - EnableStickiness
-            - Key: 'stickiness.enabled'
-              Value: 'true'
-            - !Ref AWS::NoValue
-        - !If
-            - EnableStickiness
-            - Key: 'stickiness.type'
-              Value: 'lb_cookie'
-            - !Ref AWS::NoValue
-        - !If
-            - EnableStickiness
-            - Key: 'stickiness.lb_cookie.duration_seconds'
-              Value: !Ref StickinessDuration
-            - !Ref AWS::NoValue
+      - Key: "deregistration_delay.timeout_seconds"
+        Value: !Ref DeregistrationDelay
+      - !If
+        - EnableStickiness
+        - Key: "stickiness.enabled"
+          Value: "true"
+        - !Ref AWS::NoValue
+      - !If
+        - EnableStickiness
+        - Key: "stickiness.type"
+          Value: "lb_cookie"
+        - !Ref AWS::NoValue
+      - !If
+        - EnableStickiness
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: !Ref StickinessDuration
+        - !Ref AWS::NoValue
       Targets:
-        - Id: !Ref Instance1Id
-        - !If
-            - Has2ndTarget
-            - Id: !Ref Instance2Id
-            - !Ref AWS::NoValue
-        - !If
-            - Has3rdTarget
-            - Id: !Ref Instance3Id
-            - !Ref AWS::NoValue
-      TargetType: 'instance'
+      - Id: !Ref Instance1Id
+      - !If
+        - Has2ndTarget
+        - Id: !Ref Instance2Id
+        - !Ref AWS::NoValue
+      - !If
+        - Has3rdTarget
+        - Id: !Ref Instance3Id
+        - !Ref AWS::NoValue
+      TargetType: "instance"
       UnhealthyThresholdCount: !Ref UnhealthyThresholdCount
       VpcId: !Ref VpcId
 
@@ -407,11 +397,11 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+      - TargetGroupArn: !Ref TargetGroup
+        Type: "forward"
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: !Ref HttpPort
-      Protocol: 'HTTP'
+      Protocol: "HTTP"
 
   #=======================================
   # HTTPS
@@ -422,13 +412,13 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       Certificates:
-        - CertificateArn: !Ref SslCertificateArn
+      - CertificateArn: !Ref SslCertificateArn
       DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+      - TargetGroupArn: !Ref TargetGroup
+        Type: "forward"
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: !Ref HttpsPort
-      Protocol: 'HTTPS'
+      Protocol: "HTTPS"
 
   #=======================================
   # Route 53 DNS Records
@@ -439,15 +429,15 @@ Resources:
     Condition: CreateDnsRecord
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: '../r53/dns-records.yaml'
+      TemplateURL: "../r53/dns-records.yaml"
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub '${RootStackName}-lb-${NameSuffix}'
+        DnsName: !Sub "${RootStackName}-lb-${Designation}"
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt ApplicationLoadBalancer.DNSName
         TimeToLive: !Ref TimeToLive
-        Type: 'CNAME'
+        Type: "CNAME"
 
         # Remote DNS Record configuration (optional)
         #

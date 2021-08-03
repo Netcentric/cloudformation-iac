@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Infrastructure for automatic, schedule based shutdown of EC2 instances'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- Infrastructure for automatic, schedule based shutdown of EC2 instances"
 
 ################################################################################
 # EC2 automated shutdown / startup
@@ -34,9 +34,6 @@ Description: 'Infrastructure for automatic, schedule based shutdown of EC2 insta
 # Resources (required)
 # Declares the AWS resources that you want to include in the stack
 #
-# Naming Conventions:
-#  - Name attribute: !Sub '${RootStackName}-<identifier>'
-#
 # See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
 #
 ################################################################################
@@ -47,50 +44,49 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-          - Action:
-              - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-      Path: "/"
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service:
+            - "lambda.amazonaws.com"
       Policies:
-        - PolicyName: "ec2SchedulerPermissions"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: "Allow"
-                Action:
-                  - "logs:CreateLogGroup"
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
-                Resource: "arn:aws:logs:*:*:log-group:/aws/lambda/*"
-              - Effect: "Allow"
-                Action:
-                  - "ec2:StartInstances"
-                  - "ec2:StopInstances"
-                  - "ec2:DescribeRegions"
-                  - "ec2:DescribeInstances"
-                  - "cloudwatch:PutMetricData"
-                  - "cloudformation:DescribeStacks"
-                  - "kms:CreateGrant"
-                  - "kms:RetireGrant"
-                  - "kms:ListGrants"
-                  - "kms:Encrypt"
-                  - "kms:Decrypt"
-                  - "kms:ReEncrypt*"
-                  - "kms:DescribeKey"
-                  - "kms:GenerateDataKey*"
-                Resource: "*"
+      - PolicyName: "ec2SchedulerPermissions"
+        PolicyDocument:
+          Statement:
+          - Action:
+            - "logs:CreateLogGroup"
+            - "logs:CreateLogStream"
+            - "logs:PutLogEvents"
+            Effect: "Allow"
+            Resource: "arn:aws:logs:*:*:log-group:/aws/lambda/*"
+          - Action:
+            - "ec2:StartInstances"
+            - "ec2:StopInstances"
+            - "ec2:DescribeRegions"
+            - "ec2:DescribeInstances"
+            - "cloudwatch:PutMetricData"
+            - "cloudformation:DescribeStacks"
+            - "kms:CreateGrant"
+            - "kms:RetireGrant"
+            - "kms:ListGrants"
+            - "kms:Encrypt"
+            - "kms:Decrypt"
+            - "kms:ReEncrypt*"
+            - "kms:DescribeKey"
+            - "kms:GenerateDataKey*"
+            Effect: "Allow"
+            Resource: "*"
+          Version: "2012-10-17"
 
   EventRole:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - LambdaFunction
-      - CloudwatchEvent
+    - LambdaFunction
+    - CloudwatchEvent
     Properties:
-      FunctionName: !Ref LambdaFunction
       Action: "lambda:InvokeFunction"
+      FunctionName: !Ref LambdaFunction
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt CloudwatchEvent.Arn
 
@@ -98,14 +94,10 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn: EC2SchedulerRole
     Properties:
-      Handler: 'index.handler'
-      Role: !GetAtt EC2SchedulerRole.Arn
-      Description: 'EC2 Scheduler Lambda function for automatically starting and stopping EC2 instances.'
       Code:
         ZipFile: |
           'use strict';
           const aws = require('aws-sdk');
-          aws.config.update({region: 'eu-central-1'});
           const ec2 = new aws.EC2();
 
           function getKey(keys, instance) {
@@ -212,8 +204,11 @@ Resources:
             });
 
           };
-      Runtime: 'nodejs10.x'
-      Timeout: '300'
+      Description: "EC2 Scheduler Lambda function for automatically starting and stopping EC2 instances."
+      Handler: "index.handler"
+      Role: !GetAtt EC2SchedulerRole.Arn
+      Runtime: "nodejs10.x"
+      Timeout: 300
 
   CloudwatchEvent:
     Type: AWS::Events::Rule
@@ -221,8 +216,8 @@ Resources:
     Properties:
       Description: "Rule to trigger EC2Scheduler function on a schedule"
       ScheduleExpression: "cron(0-05 3,4,19,21 ? * MON-FRI *)"
-      State: 'ENABLED'
+      State: "ENABLED"
       Targets:
-        -
-          Arn: !GetAtt LambdaFunction.Arn
-          Id: 'TargetFunctionV1'
+      -
+        Arn: !GetAtt LambdaFunction.Arn
+        Id: "TargetFunctionV1"

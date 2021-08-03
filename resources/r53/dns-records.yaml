@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Private Route 53 DNS Record for a given EC2 Instance'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- Private Route 53 DNS Record for a given EC2 Instance"
 
 ################################################################################
 #
@@ -20,18 +20,18 @@ Description: 'Private Route 53 DNS Record for a given EC2 Instance'
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: 'DNS Record configuration'
-        Parameters:
-          - DnsName
-          - HostedZoneName
-          - Target
-          - TimeToLive
-          - Type
-      - Label:
-          default: 'Remote DNS Record configuration (optional)'
-        Parameters:
-          - ServiceToken
+    - Label:
+        default: "DNS Record configuration"
+      Parameters:
+      - DnsName
+      - HostedZoneName
+      - Target
+      - TimeToLive
+      - Type
+    - Label:
+        default: "Remote DNS Record configuration (optional)"
+      Parameters:
+      - ServiceToken
 
 
 ################################################################################
@@ -49,36 +49,36 @@ Parameters:
   #=======================================
 
   DnsName:
-    Description: 'The part of the domain that identifies the Instance (must not include the Hosted Zones name; examples: "assets-dev-author-1" or "search-prod-solr-3").'
+    Description: "The part of the domain that identifies the Instance (must not include the Hosted Zones name; examples: \"assets-dev-author-1\" or \"sites-prod-publish-3\")."
     Type: String
 
   HostedZoneName:
-    Description: 'The name of the domain for the Hosted Zone where the Record Sets will be added (example: "my-project.example.com").'
+    Description: "The name of the domain for the Hosted Zone where the Record Sets will be added (example: \"my-project.example.com\")."
     Type: String
 
   Target:
-    Description: 'The target for this DNS record. The value must correspond with the value that you specified for the Type property.'
+    Description: "The target for this DNS record. The value must correspond with the value that you specified for the Type property."
     Type: String
 
   TimeToLive:
-    Description: 'The private DNS Records cache time to live (TTL), in seconds.'
+    Description: "The private DNS Records cache time to live (TTL), in seconds."
     Type: Number
     Default: 300
 
   Type:
-    Description: 'The DNS record type (currently supported values for are: "A" and "CNAME")'
+    Description: "The DNS record type (currently supported values for are: \"A\" and \"CNAME\")"
     Type: String
-    AllowedValues: [ 'A', 'CNAME' ]
-    Default: 'A'
+    AllowedValues: [ "A", "CNAME" ]
+    Default: "A"
 
   #=======================================
   # Remote DNS Record configuration (optional)
   #=======================================
 
   ServiceToken:
-    Description: 'The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack). This feature can be enabled by involving the "remote-dns-management" template.'
+    Description: "The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack). This feature can be enabled by involving the \"remote-dns-management\" template."
     Type: String
-    Default: ''
+    Default: ""
 
 
 ################################################################################
@@ -93,7 +93,7 @@ Parameters:
 Conditions:
 
   # If no Service Token has been provided, the DNS Record will be managed in this account
-  CreateLocalDnsRecord: !Equals [ !Ref ServiceToken, '' ]
+  CreateLocalDnsRecord: !Equals [ !Ref ServiceToken, "" ]
 
   # If a Service Token has been provided, the DNS Records will be managed in a remote account
   CreateRemoteDnsRecord: !Not
@@ -104,9 +104,6 @@ Conditions:
 #
 # Resources (required)
 # Declares the AWS resources that you want to include in the stack
-#
-# Naming Conventions:
-#  - Name attribute: !Sub '${RootStackName}-<identifier>-${NameSuffix}'
 #
 # See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
 #
@@ -121,10 +118,10 @@ Resources:
     Condition: CreateLocalDnsRecord
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !Sub '${DnsName}.${HostedZoneName}'
+      HostedZoneName: !Sub "${HostedZoneName}."
+      Name: !Sub "${DnsName}.${HostedZoneName}"
       ResourceRecords:
-        - !Ref Target
+      - !Ref Target
       TTL: !Ref TimeToLive
       Type: !Ref Type
 
@@ -136,10 +133,10 @@ Resources:
     Condition: CreateRemoteDnsRecord
     Type: Custom::RemoteDnsRecord
     Properties:
+      # The name of the record that we want to create, update, or delete, including the Hosted Zone name (example: "foobar.example.com")
+      Name: !Sub "${DnsName}.${HostedZoneName}"
       # The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records. The service token must be from the same region in which you are creating this stack.
       ServiceToken: !Ref ServiceToken
-      # The name of the record that we want to create, update, or delete, including the Hosted Zone name (example: "foobar.example.com")
-      Name: !Sub '${DnsName}.${HostedZoneName}'
       # The current or new DNS record value (in this case the IP)
       Target: !Ref Target
       # The DNS record type (currently supported values for are: "A" and "CNAME")

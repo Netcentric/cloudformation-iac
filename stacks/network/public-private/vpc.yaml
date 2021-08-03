@@ -1,17 +1,17 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'VPC comprising of one to three Availability Zones, each containing a public and a private Subnet'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- VPC comprising of one to three Availability Zones, each containing a public and a private Subnet"
 
 ################################################################################
 #
 # Decision Trees:
 #
 #   Availability Zones:
-#     Az<X>PublicSubnetCidr != '0.0.0.0/32' && Az<X>PrivateSubnetCidr != '0.0.0.0/32'
+#     Az<X>PublicSubnetCidr != "0.0.0.0/32" && Az<X>PrivateSubnetCidr != "0.0.0.0/32"
 #       true  -> Set up Availability Zone <X>
 #       false -> None [default]
 #
 #   VPN:
-#     VpnCustomerGatewayId != ''
+#     VpnCustomerGatewayId != ""
 #       true  -> Created
 #       false -> None [default]
 #
@@ -30,36 +30,39 @@ Description: 'VPC comprising of one to three Availability Zones, each containing
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: 'Naming details'
-        Parameters:
-          - RootStackName
-      - Label:
-          default: 'Network configuration'
-        Parameters:
-          - VpcCidr
-          - Az1PublicSubnetCidr
-          - Az1PrivateSubnetCidr
-          - InternetAccess
-          - VpcWideDmz
-      - Label:
-          default: 'Network configuration - Availability Zone 2 (optional)'
-        Parameters:
-          - Az2PublicSubnetCidr
-          - Az2PrivateSubnetCidr
-      - Label:
-          default: 'Network configuration - Availability Zone 3 (optional)'
-        Parameters:
-          - Az3PublicSubnetCidr
-          - Az3PrivateSubnetCidr
-      - Label:
-          default: 'VPN configuration (optional)'
-        Parameters:
-          - VpnAmazonSideAsn
-          - VpnCustomerGatewayId
-          - VpnStaticRoutes
-          - VpnStaticRoutesCount
-          - VpnTransitGatewayId
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - RootStackName
+    - Label:
+        default: "Network configuration"
+      Parameters:
+      - InternetAccess
+      - VpcCidr
+      - VpcWideDmz
+    - Label:
+        default: "Network configuration - Availability Zone 1"
+      Parameters:
+      - Az1PublicSubnetCidr
+      - Az1PrivateSubnetCidr
+    - Label:
+        default: "Network configuration - Availability Zone 2 (optional)"
+      Parameters:
+      - Az2PublicSubnetCidr
+      - Az2PrivateSubnetCidr
+    - Label:
+        default: "Network configuration - Availability Zone 3 (optional)"
+      Parameters:
+      - Az3PublicSubnetCidr
+      - Az3PrivateSubnetCidr
+    - Label:
+        default: "VPN configuration (optional)"
+      Parameters:
+      - VpnAmazonSideAsn
+      - VpnCustomerGatewayId
+      - VpnStaticRoutes
+      - VpnStaticRoutesCount
+      - VpnTransitGatewayId
 
 
 ################################################################################
@@ -77,122 +80,126 @@ Parameters:
   #=======================================
 
   RootStackName:
-    Description: 'The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: "infra" or "nonprod").'
+    Description: "The name of the top-level Stack this Stack, if nested, ultimately belongs to (this Stacks name else; examples: \"prod\" or \"nonprod\")."
     Type: String
 
   #=======================================
   # Network configuration
   #=======================================
 
-  VpcCidr:
-    Description: 'Private IP class for VPC (e.g. 10.31.0.0/22).'
-    Type: String
-    MinLength: 9
-    MaxLength: 18
-    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x min /16.'
-
-  Az1PublicSubnetCidr:
-    Description: 'Public Subnet-A IP class (must be a valid subclass of VPC, e.g. 10.31.0.0/24).'
-    Type: String
-    MinLength: 9
-    MaxLength: 18
-    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
-
-  Az1PrivateSubnetCidr:
-    Description: 'Private Subnet-A IP class (must be a valid subclass of VPC, e.g. 10.31.1.0/24).'
-    Type: String
-    MinLength: 9
-    MaxLength: 18
-    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
-
   InternetAccess:
-    Description: 'Indicates whether internet access should be possible for Instances in the private Subnets.'
+    Description: "Indicates whether internet access should be possible for Instances in the private Subnets."
     Type: String
-    AllowedValues: [ 'disable', 'enable' ]
-    Default: 'enable'
+    AllowedValues: [ "disabled", "enabled" ]
+    Default: "enabled"
+
+  VpcCidr:
+    Description: "Private IP class for VPC (e.g. 10.31.0.0/22)."
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x min /16."
 
   VpcWideDmz:
-    Description: 'Indicates whether a VPC wide DMZ should be created.'
+    Description: "Indicates whether a VPC wide DMZ should be created."
     Type: String
-    AllowedValues: [ 'disable', 'enable' ]
-    Default: 'disable'
+    AllowedValues: [ "disabled", "enabled" ]
+    Default: "disabled"
+
+  #=======================================
+  # Network configuration - Availability Zone 1
+  #=======================================
+
+  Az1PublicSubnetCidr:
+    Description: "Public Subnet-A IP class (must be a valid subclass of VPC, e.g. 10.31.0.0/24)."
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
+
+  Az1PrivateSubnetCidr:
+    Description: "Private Subnet-A IP class (must be a valid subclass of VPC, e.g. 10.31.1.0/24)."
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
 
   #=======================================
   # Network configuration - Availability Zone 2 (optional)
   #=======================================
 
   Az2PublicSubnetCidr:
-    Description: 'Public Subnet-B IP class (must be a valid subclass of VPC, e.g. 10.31.2.0/24).'
+    Description: "Public Subnet-B IP class (must be a valid subclass of VPC, e.g. 10.31.2.0/24)."
     Type: String
-    Default: '0.0.0.0/32'
+    Default: "0.0.0.0/32"
     MinLength: 9
     MaxLength: 18
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
 
   Az2PrivateSubnetCidr:
-    Description: 'Private Subnet-B IP class (must be a valid subclass of VPC, e.g. 10.31.3.0/24).'
+    Description: "Private Subnet-B IP class (must be a valid subclass of VPC, e.g. 10.31.3.0/24)."
     Type: String
-    Default: '0.0.0.0/32'
+    Default: "0.0.0.0/32"
     MinLength: 9
     MaxLength: 18
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
 
   #=======================================
   # Network configuration - Availability Zone 3 (optional)
   #=======================================
 
   Az3PublicSubnetCidr:
-    Description: 'Public Subnet-C IP class (must be a valid subclass of VPC, e.g. 10.31.2.0/24).'
+    Description: "Public Subnet-C IP class (must be a valid subclass of VPC, e.g. 10.31.2.0/24)."
     Type: String
-    Default: '0.0.0.0/32'
+    Default: "0.0.0.0/32"
     MinLength: 9
     MaxLength: 18
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
 
   Az3PrivateSubnetCidr:
-    Description: 'Private Subnet-C IP class (must be a valid subclass of VPC, e.g. 10.31.3.0/24).'
+    Description: "Private Subnet-C IP class (must be a valid subclass of VPC, e.g. 10.31.3.0/24)."
     Type: String
-    Default: '0.0.0.0/32'
+    Default: "0.0.0.0/32"
     MinLength: 9
     MaxLength: 18
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: 'Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class.'
+    ConstraintDescription: "Must be a valid CIDR range in the form x.x.x.x AND a subnet of VPC IP Class."
 
   #=======================================
   # VPN configuration (optional)
   #=======================================
 
   VpnAmazonSideAsn:
-    Description: 'The private Autonomous System Number (ASN) for the Amazon side of a BGP session (only used when specifying VpnCustomerGatewayId).'
+    Description: "The private Autonomous System Number (ASN) for the Amazon side of a BGP session (only used when specifying VpnCustomerGatewayId)."
     Type: Number
     Default: 0
 
   VpnCustomerGatewayId:
-    Description: 'The ID of the Customer Gateway (use either this or VpnTransitGatewayId, not both).'
+    Description: "The ID of the Customer Gateway (use either this or VpnTransitGatewayId, not both)."
     Type: String
-    Default: ''
+    Default: ""
 
   VpnStaticRoutes:
-    Description: 'A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5; only used when specifying VpnCustomerGatewayId).'
+    Description: "A list of CIDR blocks that is associated with the local subnet of the customer network (max: 5; only used when specifying VpnCustomerGatewayId)."
     Type: CommaDelimitedList
-    Default: ''
+    Default: ""
 
   VpnStaticRoutesCount:
-    Description: 'The number of CIDR blocks that specified in StaticRoutes (max: 5; only used when specifying VpnCustomerGatewayId).'
+    Description: "The number of CIDR blocks that specified in StaticRoutes (max: 5; only used when specifying VpnCustomerGatewayId)."
     Type: Number
     AllowedValues: [ 0, 1, 2, 3, 4, 5 ]
     Default: 0
 
   VpnTransitGatewayId:
-    Description: 'The ID of the Transit Gateway (use either this or VpnCustomerGatewayId, not both).'
+    Description: "The ID of the Transit Gateway (use either this or VpnCustomerGatewayId, not both)."
     Type: String
-    Default: ''
+    Default: ""
 
 
 ################################################################################
@@ -212,16 +219,16 @@ Conditions:
   # If no valid CIDRs are provided, we won't use Availability Zone 2
   UseAz2: !And
     - !Not
-      - !Equals [ !Ref Az2PublicSubnetCidr, '0.0.0.0/32' ]
+      - !Equals [ !Ref Az2PublicSubnetCidr, "0.0.0.0/32" ]
     - !Not
-      - !Equals [ !Ref Az2PrivateSubnetCidr, '0.0.0.0/32' ]
+      - !Equals [ !Ref Az2PrivateSubnetCidr, "0.0.0.0/32" ]
 
   # If no valid CIDRs are provided, we won't use Availability Zone 3
   UseAz3: !And
     - !Not
-      - !Equals [ !Ref Az3PublicSubnetCidr, '0.0.0.0/32' ]
+      - !Equals [ !Ref Az3PublicSubnetCidr, "0.0.0.0/32" ]
     - !Not
-      - !Equals [ !Ref Az3PrivateSubnetCidr, '0.0.0.0/32' ]
+      - !Equals [ !Ref Az3PrivateSubnetCidr, "0.0.0.0/32" ]
 
   #----------------------------
   # VPN creation
@@ -230,25 +237,22 @@ Conditions:
   # If no Transit Gateway ID and no Customer Gateway ID was given, we won't create VPN connections
   EnableVpn: !Or
     - !Not
-      - !Equals [ !Ref VpnTransitGatewayId, '' ]
+      - !Equals [ !Ref VpnTransitGatewayId, "" ]
     - !Not
-      - !Equals [ !Ref VpnCustomerGatewayId, '' ]
+      - !Equals [ !Ref VpnCustomerGatewayId, "" ]
 
   #----------------------------
   # Network
   #----------------------------
 
   # If the VPC wide DMZ should be enabled, we will do so
-  EnableDmz: !Equals [ !Ref VpcWideDmz, 'enable' ]
+  EnableDmz: !Equals [ !Ref VpcWideDmz, "enabled" ]
 
 
 ################################################################################
 #
 # Resources (required)
 # Declares the AWS resources that you want to include in the stack
-#
-# Naming Conventions:
-#  - Name attribute: !Sub '${RootStackName}-<identifier>'
 #
 # See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
 #
@@ -265,12 +269,12 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref VpcCidr
-      InstanceTenancy: default
       EnableDnsSupport: true
       EnableDnsHostnames: true
+      InstanceTenancy: "default"
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-vpc'
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-vpc"
 
   #=======================================
   # Subnets
@@ -278,19 +282,19 @@ Resources:
 
   # Subnets in Availability Zone 1
   Az1:
-    DependsOn: [ InternetGateway, VpcInternetGatewayAttachment ]
+    DependsOn: [ InternetGateway, InternetGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: 'subnet.yaml'
+      TemplateURL: "subnet.yaml"
       Parameters:
         # Naming details
         #
+        Designation: "az1"
         RootStackName: !Ref RootStackName
-        NameSuffix: 'az1'
 
         # Subnet configuration
         #
-        AvailabilityZone: !Select [ '0', !GetAZs '' ]
+        AvailabilityZone: !Select [ "0", !GetAZs "" ]
         IgwRouteTable: !Ref InternetGatewayRouteTable
         InternetAccess: !Ref InternetAccess
         PrivateSubnetCidr: !Ref Az1PrivateSubnetCidr
@@ -300,19 +304,19 @@ Resources:
   # Subnets in Availability Zone 2
   Az2:
     Condition: UseAz2
-    DependsOn: [ InternetGateway, VpcInternetGatewayAttachment ]
+    DependsOn: [ InternetGateway, InternetGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: 'subnet.yaml'
+      TemplateURL: "subnet.yaml"
       Parameters:
         # Naming details
         #
+        Designation: "az2"
         RootStackName: !Ref RootStackName
-        NameSuffix: 'az2'
 
         # Subnet configuration
         #
-        AvailabilityZone: !Select [ '1', !GetAZs '' ]
+        AvailabilityZone: !Select [ "1", !GetAZs "" ]
         IgwRouteTable: !Ref InternetGatewayRouteTable
         InternetAccess: !Ref InternetAccess
         PrivateSubnetCidr: !Ref Az2PrivateSubnetCidr
@@ -322,19 +326,19 @@ Resources:
   # Subnets in Availability Zone 3
   Az3:
     Condition: UseAz3
-    DependsOn: [ InternetGateway, VpcInternetGatewayAttachment ]
+    DependsOn: [ InternetGateway, InternetGatewayAttachment ]
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: 'subnet.yaml'
+      TemplateURL: "subnet.yaml"
       Parameters:
         # Naming details
         #
+        Designation: "az3"
         RootStackName: !Ref RootStackName
-        NameSuffix: 'az3'
 
         # Subnet configuration
         #
-        AvailabilityZone: !Select [ '2', !GetAZs '' ]
+        AvailabilityZone: !Select [ "2", !GetAZs "" ]
         IgwRouteTable: !Ref InternetGatewayRouteTable
         InternetAccess: !Ref InternetAccess
         PrivateSubnetCidr: !Ref Az3PrivateSubnetCidr
@@ -350,33 +354,33 @@ Resources:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-igw'
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-igw"
+
+  # Connect the VPC with the internet gateway (WWW)
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
 
   InternetGatewayRoute:
     Type: AWS::EC2::Route
     Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      RouteTableId: !Ref InternetGatewayRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
       GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref InternetGatewayRouteTable
 
   InternetGatewayRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref Vpc
       Tags:
-        - Key: Name
-          Value: !Sub '${RootStackName}-rt-public'
-
-  # Connect the VPC with the internet gateway (WWW)
-  VpcInternetGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-rt-public"
       VpcId: !Ref Vpc
-      InternetGatewayId: !Ref InternetGateway
 
   #=======================================
-  # VPN Access
+  # VPN access
   #=======================================
 
   # Optional: Accessibility via VPN
@@ -384,7 +388,7 @@ Resources:
     Condition: EnableVpn
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: '../../../resources/ec2/vpn-connection.yaml'
+      TemplateURL: "../../../resources/ec2/vpn-connection.yaml"
       Parameters:
         # Naming details
         #
@@ -393,7 +397,7 @@ Resources:
         # VPN Connection configuration
         #
         StaticRoutes: !Join
-          - ','
+          - ","
           - !Ref VpnStaticRoutes
         StaticRoutesCount: !Ref VpnStaticRoutesCount
         VpcId: !Ref Vpc
@@ -401,7 +405,7 @@ Resources:
         # Transit Gateway (optional)
         #
         RouteTables: !Join
-          - ','
+          - ","
           - - !GetAtt Az1.Outputs.PrivateRouteTable
             - !If
               - UseAz2
@@ -419,7 +423,7 @@ Resources:
             - 2
             - 1
         SubnetIds: !Join
-          - ','
+          - ","
           - - !GetAtt Az1.Outputs.PrivateSubnet
             - !If
               - UseAz2
@@ -436,7 +440,7 @@ Resources:
         AmazonSideAsn: !Ref VpnAmazonSideAsn
         CustomerGatewayId: !Ref VpnCustomerGatewayId
         RoutePropagationTargets: !Join
-          - ','
+          - ","
           - - !Ref InternetGatewayRouteTable
             - !GetAtt Az1.Outputs.PrivateRouteTable
             - !If
@@ -453,25 +457,25 @@ Resources:
   #=======================================
 
   # Attached to all instances of the VPC
-  SecurityGroupVpc:
+  SecurityGroupDmz:
     Condition: EnableDmz
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: !Sub 'Rules for connections from and to all Instances in VPC ${RootStackName}'
-      VpcId: !Ref Vpc
+      GroupDescription: !Sub "Rules for connections from and to all Instances in VPC ${RootStackName}"
       Tags:
-        - Key: 'Name'
-          Value: !Sub '${RootStackName}-sg-vpc'
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-sg-dmz-vpc"
+      VpcId: !Ref Vpc
 
   # If a VOC wide DMZ is enabled, allow incoming traffic from this SG -> All instances can communicate with all instances attached to the same SG
-  SecurityGroupVpcIngress:
+  SecurityGroupDmzIngress:
     Condition: EnableDmz
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      Description: 'All Instances (DMZ)'
-      GroupId: !Ref SecurityGroupVpc
-      SourceSecurityGroupId: !Ref SecurityGroupVpc
-      IpProtocol: '-1'
+      Description: "All Instances (DMZ)"
+      GroupId: !Ref SecurityGroupDmz
+      IpProtocol: "-1"
+      SourceSecurityGroupId: !Ref SecurityGroupDmz
 
 
 ################################################################################
@@ -486,16 +490,16 @@ Resources:
 Outputs:
 
   Vpc:
-    Description: 'The ID of the VPC.'
+    Description: "The ID of the VPC."
     Value: !Ref Vpc
 
-  SecurityGroupVpc:
+  SecurityGroupDmz:
     Condition: EnableDmz
-    Description: 'The ID of SecurityGroup that can be used to create a VPC wide DMZ.'
-    Value: !Ref SecurityGroupVpc
+    Description: "The ID of SecurityGroup that can be used to create a VPC wide DMZ."
+    Value: !Ref SecurityGroupDmz
 
   PublicRouteTable:
-    Description: 'PublicRouteTable'
+    Description: "PublicRouteTable"
     Value: !Ref InternetGatewayRouteTable
 
   #----------------------------
@@ -503,19 +507,19 @@ Outputs:
   #----------------------------
 
   Az1:
-    Description: 'Az1.AvailabilityZone'
+    Description: "Az1.AvailabilityZone"
     Value: !GetAtt Az1.Outputs.AvailabilityZone
 
   Az1PrivateRouteTable:
-    Description: 'Az1.PrivateRouteTable'
+    Description: "Az1.PrivateRouteTable"
     Value: !GetAtt Az1.Outputs.PrivateRouteTable
 
   Az1PrivateSubnet:
-    Description: 'Az1.PrivateSubnet'
+    Description: "Az1.PrivateSubnet"
     Value: !GetAtt Az1.Outputs.PrivateSubnet
 
   Az1PublicSubnet:
-    Description: 'Az1.PublicSubnet'
+    Description: "Az1.PublicSubnet"
     Value: !GetAtt Az1.Outputs.PublicSubnet
 
   #----------------------------
@@ -524,22 +528,22 @@ Outputs:
 
   Az2:
     Condition: UseAz2
-    Description: 'Az2.AvailabilityZone'
+    Description: "Az2.AvailabilityZone"
     Value: !GetAtt Az2.Outputs.AvailabilityZone
 
   Az2PrivateRouteTable:
     Condition: UseAz2
-    Description: 'Az2.PrivateRouteTable'
+    Description: "Az2.PrivateRouteTable"
     Value: !GetAtt Az2.Outputs.PrivateRouteTable
 
   Az2PrivateSubnet:
     Condition: UseAz2
-    Description: 'Az2.PrivateSubnet'
+    Description: "Az2.PrivateSubnet"
     Value: !GetAtt Az2.Outputs.PrivateSubnet
 
   Az2PublicSubnet:
     Condition: UseAz2
-    Description: 'Az2.PublicSubnet'
+    Description: "Az2.PublicSubnet"
     Value: !GetAtt Az2.Outputs.PublicSubnet
 
   #----------------------------
@@ -548,20 +552,20 @@ Outputs:
 
   Az3:
     Condition: UseAz3
-    Description: 'Az3.AvailabilityZone'
+    Description: "Az3.AvailabilityZone"
     Value: !GetAtt Az3.Outputs.AvailabilityZone
 
   Az3PrivateRouteTable:
     Condition: UseAz3
-    Description: 'Az3.PrivateRouteTable'
+    Description: "Az3.PrivateRouteTable"
     Value: !GetAtt Az3.Outputs.PrivateRouteTable
 
   Az3PrivateSubnet:
     Condition: UseAz3
-    Description: 'Az3.PrivateSubnet'
+    Description: "Az3.PrivateSubnet"
     Value: !GetAtt Az3.Outputs.PrivateSubnet
 
   Az3PublicSubnet:
     Condition: UseAz3
-    Description: 'Az3.PublicSubnet'
+    Description: "Az3.PublicSubnet"
     Value: !GetAtt Az3.Outputs.PublicSubnet

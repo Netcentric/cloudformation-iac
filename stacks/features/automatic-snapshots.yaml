@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Infrastructure for automatic, schedule based creation EBS Snapshots"
+Description: "CloudFormation IaC --- Infrastructure for automatic, schedule based creation EBS Snapshots"
 
 ################################################################################
 #
@@ -20,15 +20,15 @@ Description: "Infrastructure for automatic, schedule based creation EBS Snapshot
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: "Naming details"
-        Parameters:
-          - ScheduleName
-      - Label:
-          default: "Snapshot policy configuration"
-        Parameters:
-          - RetainCount
-          - ScheduleCron
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - ScheduleName
+    - Label:
+        default: "Snapshot policy configuration"
+      Parameters:
+      - RetainCount
+      - ScheduleCron
 
 
 ################################################################################
@@ -46,7 +46,7 @@ Parameters:
   #=======================================
 
   ScheduleName:
-    Description: "A string identifying this Snapshot schedule. It will later be used to tag Volumes that should be backed up following this schedule (examples: 'Hourly', 'Daily', 'Weekly')."
+    Description: "A string identifying this Snapshot schedule. It will later be used to tag Volumes that should be backed up following this schedule (examples: \"Hourly\", \"Daily\", \"Weekly\")."
     Type: String
     # The pattern is derived as the greatest common factor of all attributes it is used for
     AllowedPattern: "[0-9A-Za-z_-]+"
@@ -62,7 +62,7 @@ Parameters:
 
   # For more information see: https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#CronExpressions
   ScheduleCron:
-    Description: "A cron expression defining when Snapshots of EC2 Volumes associated with this schedule will be created (example: '0 4-20 ? * MON-FRI *', '0 0 ? * MON-FRI *', '0 0 ? * SUN *')."
+    Description: "A cron expression defining when Snapshots of EC2 Volumes associated with this schedule will be created (example: \"0 4-20 ? * MON-FRI *\", \"0 0 ? * MON-FRI *\", \"0 0 ? * SUN *\")."
     Type: String
 
 
@@ -83,58 +83,55 @@ Resources:
   IamRole:
     Type: AWS::IAM::Role
     Properties:
-      # Naming an IAM resource can cause an unrecoverable error if you reuse the same template in multiple Regions
-      RoleName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}"
       AssumeRolePolicyDocument:
         Statement:
-          - Action:
-              - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-                - dlm.amazonaws.com
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service:
+            - "dlm.amazonaws.com"
       Description: "IAM Role for automatic Snapshot creation"
-      Path: "/"
       Policies:
-        - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Manage_Snapshots"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: "Allow"
-                Action:
-                  - "ec2:CreateSnapshot"
-                  - "ec2:CreateSnapshots"
-                  - "ec2:DeleteSnapshot"
-                  - "ec2:DescribeVolumes"
-                  - "ec2:DescribeInstances"
-                  - "ec2:DescribeSnapshots"
-                Resource: "*"
-        - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Tag_Snapshots"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: "Allow"
-                Action:
-                  - "ec2:CreateTags"
-                Resource: "arn:aws:ec2:*::snapshot/*"
+      - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Manage_Snapshots"
+        PolicyDocument:
+          Statement:
+          - Action:
+            - "ec2:CreateSnapshot"
+            - "ec2:CreateSnapshots"
+            - "ec2:DeleteSnapshot"
+            - "ec2:DescribeVolumes"
+            - "ec2:DescribeInstances"
+            - "ec2:DescribeSnapshots"
+            Effect: "Allow"
+            Resource: "*"
+          Version: "2012-10-17"
+      - PolicyName: !Sub "${AWS::Region}_AutomaticSnapshots_${ScheduleName}_EC2_Tag_Snapshots"
+        PolicyDocument:
+          Statement:
+          - Action:
+            - "ec2:CreateTags"
+            Effect: "Allow"
+            Resource: "arn:aws:ec2:*::snapshot/*"
+          Version: "2012-10-17"
 
   DlmLifecyclePolicy:
     DependsOn: IamRole
     Type: AWS::DLM::LifecyclePolicy
     Properties:
       Description: !Sub "Policy for Automatic Snapshot creation - ${ScheduleName}"
-      State: "ENABLED"
       ExecutionRoleArn: !GetAtt IamRole.Arn
       PolicyDetails:
         ResourceTypes:
-          - "VOLUME"
+        - "VOLUME"
         Schedules:
-          - Name: !Sub "Automatic Snapshots - ${ScheduleName}"
-            CopyTags: true
-            CreateRule:
-              CronExpression: !Sub "cron(${ScheduleCron})"
-            RetainRule:
-              Count: !Ref RetainCount
+        - CopyTags: true
+          CreateRule:
+            CronExpression: !Sub "cron(${ScheduleCron})"
+          Name: !Sub "Automatic Snapshots - ${ScheduleName}"
+          RetainRule:
+            Count: !Ref RetainCount
         TargetTags:
-          - Key: "AutomaticSnapshots"
-            Value: !Sub "${ScheduleName}"
+        - Key: "AutomaticSnapshots"
+          Value: !Ref ScheduleName
+      State: "ENABLED"
