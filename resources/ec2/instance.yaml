@@ -58,6 +58,7 @@ Metadata:
       - VolumeOptEncryption
       - VolumeOptIops
       - VolumeOptSize
+      - VolumeOptThroughput
       - VolumeOptType
     - Label:
         default: "/tmp (optional)"
@@ -66,6 +67,7 @@ Metadata:
       - VolumeTmpEncryption
       - VolumeTmpIops
       - VolumeTmpSize
+      - VolumeTmpThroughput
       - VolumeTmpType
     - Label:
         default: "/var (optional)"
@@ -74,6 +76,7 @@ Metadata:
       - VolumeVarEncryption
       - VolumeVarIops
       - VolumeVarSize
+      - VolumeVarThroughput
       - VolumeVarType
     - Label:
         default: "DNS Record configuration (optional)"
@@ -181,6 +184,11 @@ Parameters:
     Type: Number
     Default: 0
 
+  VolumeOptThroughput:
+    Description: "The throughput of the Volume, in MiB/s (only used if VolumeOptType is set to \"gp3\")."
+    Type: Number
+    Default: 125
+
   VolumeOptType:
     Description: "The Volume type (if you set the type to \"io1\" or \"io2\", you must also set the VolumeOptIops property)."
     Type: String
@@ -212,6 +220,11 @@ Parameters:
     Type: Number
     Default: 0
 
+  VolumeTmpThroughput:
+    Description: "The throughput of the Volume, in MiB/s (only used if VolumeTmpType is set to \"gp3\")."
+    Type: Number
+    Default: 125
+
   VolumeTmpType:
     Description: "The volume type (if you set the type to \"io1\" or \"io2\", you must also set the VolumeTmpIops property)."
     Type: String
@@ -240,6 +253,11 @@ Parameters:
 
   VolumeVarSize:
     Description: "The size of the Volume, in gibibytes (if this value is 0 the volume will not be created)."
+    Type: Number
+    Default: 0
+
+  VolumeVarThroughput:
+    Description: "The throughput of the Volume, in MiB/s (only used if VolumeVarType is set to \"gp3\")."
     Type: Number
     Default: 0
 
@@ -333,6 +351,12 @@ Conditions:
       - !Equals [ !Ref VolumeOptType, "io1" ]
       - !Equals [ !Ref VolumeOptType, "io2" ]
 
+  # Whether the throughput can and should be set or not
+  SetVolumeOptThroughput: !And
+    - !Not
+      - !Equals [ !Ref VolumeOptThroughput, 0 ]
+    - !Equals [ !Ref VolumeOptType, "gp3" ]
+
   # Whether the I/O performance can and should be set or not
   SetVolumeTmpIops: !And
     - !Not
@@ -342,6 +366,12 @@ Conditions:
       - !Equals [ !Ref VolumeTmpType, "io1" ]
       - !Equals [ !Ref VolumeTmpType, "io2" ]
 
+  # Whether the throughput can and should be set or not
+  SetVolumeTmpThroughput: !And
+    - !Not
+      - !Equals [ !Ref VolumeTmpThroughput, 0 ]
+    - !Equals [ !Ref VolumeTmpType, "gp3" ]
+
   # Whether the I/O performance can and should be set or not
   SetVolumeVarIops: !And
     - !Not
@@ -350,6 +380,12 @@ Conditions:
       - !Equals [ !Ref VolumeVarType, "gp3" ]
       - !Equals [ !Ref VolumeVarType, "io1" ]
       - !Equals [ !Ref VolumeVarType, "io2" ]
+
+  # Whether the throughput can and should be set or not
+  SetVolumeVarThroughput: !And
+    - !Not
+      - !Equals [ !Ref VolumeVarThroughput, 0 ]
+    - !Equals [ !Ref VolumeVarType, "gp3" ]
 
 
 ################################################################################
@@ -964,6 +1000,10 @@ Resources:
         - Key: "AutomaticSnapshots"
           Value: !Ref FeatureAutoSnapshot
         - !Ref AWS::NoValue
+      Throughput: !If
+        - SetVolumeOptThroughput
+        - !Ref VolumeOptThroughput
+        - !Ref AWS::NoValue
       VolumeType: !Ref VolumeOptType
 
   # The Volume that will be mounted to /tmp
@@ -987,6 +1027,10 @@ Resources:
         - Key: "AutomaticSnapshots"
           Value: !Ref FeatureAutoSnapshot
         - !Ref AWS::NoValue
+      Throughput: !If
+        - SetVolumeTmpThroughput
+        - !Ref VolumeTmpThroughput
+        - !Ref AWS::NoValue
       VolumeType: !Ref VolumeTmpType
 
   # The Volume that will be mounted to /var
@@ -1009,6 +1053,10 @@ Resources:
         - EnableAutoSnapshot
         - Key: "AutomaticSnapshots"
           Value: !Ref FeatureAutoSnapshot
+        - !Ref AWS::NoValue
+      Throughput: !If
+        - SetVolumeVarThroughput
+        - !Ref VolumeVarThroughput
         - !Ref AWS::NoValue
       VolumeType: !Ref VolumeVarType
 
