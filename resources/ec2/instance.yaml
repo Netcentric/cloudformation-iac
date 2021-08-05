@@ -524,8 +524,8 @@ Resources:
                   export PP_REGION=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
 
                   # we're detecting if a tag is set. If so, override anything in the file
-                  export TAG_SERVER=$(/usr/local/aws/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_server`].Value' --output text)
-                  export TAG_REGION=$(/usr/local/aws/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_region`].Value' --output text)
+                  export TAG_SERVER=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_server`].Value' --output text)
+                  export TAG_REGION=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_region`].Value' --output text)
 
                   if [ -n ${TAG_SERVER} ] && [ ! -z ${TAG_SERVER} ]; then
                     export OCM_SERVER=${TAG_SERVER}
@@ -545,7 +545,7 @@ Resources:
                   fi
 
                   # get PuppetMaster metadata
-                  PM_ENDPOINT=$(/usr/local/aws/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[?ServerName=='${OCM_SERVER}'].Endpoint" --output text)
+                  PM_ENDPOINT=$(/usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[?ServerName=='${OCM_SERVER}'].Endpoint" --output text)
 
                   # set global settings
                   export PUPPETSERVER=$PM_ENDPOINT
@@ -591,7 +591,7 @@ Resources:
                     return 0
                   fi
 
-                  /usr/local/aws/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > /etc/puppetlabs/puppet/ssl/certs/ca.pem
+                  /usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > /etc/puppetlabs/puppet/ssl/certs/ca.pem
                 }
 
                 function install_puppet {
@@ -613,7 +613,7 @@ Resources:
                 }
 
                 function generate_csr_attributes {
-                  pp_tags=$(/usr/local/aws/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?starts_with(Key, `pp_`)].[Key,Value]' --output text | sed s/[[:blank:]]/=/)
+                  pp_tags=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?starts_with(Key, `pp_`)].[Key,Value]' --output text | sed s/[[:blank:]]/=/)
                   if [ -z ${pp_tags} ]; then
                     echo "Couldn't describe tags (check permissions in the IAM role), skipping function 'generate_csr_attributes'"
                     return 1
@@ -657,12 +657,12 @@ Resources:
                   ${PUPPET} bootstrap csr
 
                   # submit the cert
-                  ASSOCIATE_TOKEN=$(/usr/local/aws/bin/aws opsworks-cm associate-node --region ${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --node-name ${CERTNAME} --engine-attributes Name=PUPPET_NODE_CSR,Value="`cat ${PP_CSR_PATH}`" --query "NodeAssociationStatusToken" --output text)
+                  ASSOCIATE_TOKEN=$(/usr/local/bin/aws opsworks-cm associate-node --region ${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --node-name ${CERTNAME} --engine-attributes Name=PUPPET_NODE_CSR,Value="`cat ${PP_CSR_PATH}`" --query "NodeAssociationStatusToken" --output text)
 
                   # wait
-                  /usr/local/aws/bin/aws opsworks-cm wait node-associated --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-}
+                  /usr/local/bin/aws opsworks-cm wait node-associated --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-}
                   # install and verify
-                  /usr/local/aws/bin/aws opsworks-cm describe-node-association-status --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query 'EngineAttributes[0].Value' --output text > ${PP_CERT_PATH}
+                  /usr/local/bin/aws opsworks-cm describe-node-association-status --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query 'EngineAttributes[0].Value' --output text > ${PP_CERT_PATH}
 
                   ${PUPPET} bootstrap verify
                 }
@@ -859,12 +859,13 @@ Resources:
                 - !Sub '/opt/aws/init/bootstrap-volumes.sh "${VolumeVarDeviceName}" "/var" "ext4"'
 
         # Make sure the AWS CLI Tools are present
+        # See: https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html
         EnsureAwsCli:
           sources:
-            /opt/aws: "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip"
+            /opt/aws/awscli-bundle: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
           commands:
             0100_install_awscli:
-              command: '/opt/aws/awscli-bundle/install --install-dir="/usr/local/aws" --bin-location="/usr/local/bin/aws"'
+              command: '/opt/aws/awscli-bundle/aws/install --install-dir "/usr/local/aws-cli" --bin-dir "/usr/local/bin"'
             # Fix: __main__.MultipleBundlesError: Multiple versions of the CLI were found in /opt/aws/awscli-bundle/packages. Please clear out this directory before proceeding.
             0200_cleanup:
               command: "rm -rf /opt/aws/awscli-bundle"
