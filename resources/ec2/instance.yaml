@@ -52,6 +52,14 @@ Metadata:
       - FeatureAutoSnapshot
       - FeatureUptimeWindows
     - Label:
+        default: "/ (optional)"
+      Parameters:
+      - RootDeviceName
+      - RootDeviceEncryption
+      - RootDeviceIops
+      - RootDeviceSize
+      - RootDeviceType
+    - Label:
         default: "/opt (optional)"
       Parameters:
       - VolumeOptDeviceName
@@ -158,6 +166,37 @@ Parameters:
     Description: "A list consisting of two elements in the UNIX cron format, the first representing the start and the second the stop times. If set to \"disabled\", the instances will run 24/7 (example: \"* 4 ? * MON-FRI *\", \"* 20 ? * MON-FRI *\")."
     Type: CommaDelimitedList
     Default: "disabled"
+
+  #=======================================
+  # / (optional)
+  #=======================================
+
+  RootDeviceName:
+    Description: "The device name set by the AMI (example: \"/dev/sda1\")."
+    Type: String
+    Default: ""
+
+  RootDeviceEncryption:
+    Description: "Whether this Volumes should be encrypted or not."
+    Type: String
+    AllowedValues: [ "", "false", "true" ]
+    Default: ""
+
+  RootDeviceIops:
+    Description: "The number of I/O operations per second (IOPS)."
+    Type: Number
+    Default: 0
+
+  RootDeviceSize:
+    Description: "The size of the Volume, in gibibytes."
+    Type: Number
+    Default: 0
+
+  RootDeviceType:
+    Description: "The Volume type."
+    Type: String
+    AllowedValues: [ "", "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: ""
 
   #=======================================
   # /opt (optional)
@@ -330,6 +369,15 @@ Conditions:
   # Storage
   #----------------------------
 
+  # Configuring the root device only if we have a name and some changed config
+  ConfigureRootDevice: !And
+    - !Condition HasRootDeviceName
+    - !Or
+      - !Condition HasRootDeviceEncryption
+      - !Condition HasRootDeviceIops
+      - !Condition HasRootDeviceSize
+      - !Condition HasRootDeviceType
+
   # If the size is 0, then no separate volume should not be created
   CreateVolumeOpt: !Not
     - !Equals [ !Ref VolumeOptSize, 0 ]
@@ -341,6 +389,26 @@ Conditions:
   # If the size is 0, then no separate volume should not be created
   CreateVolumeVar: !Not
     - !Equals [ !Ref VolumeVarSize, 0 ]
+
+  # Whether a RootDeviceName has been provided or not (allowing us to customize the root device)
+  HasRootDeviceName: !Not
+    - !Equals [ !Ref RootDeviceName, "" ]
+
+  #  Whether RootDeviceEncryption has been provided or not
+  HasRootDeviceEncryption: !Not
+    - !Equals [ !Ref RootDeviceEncryption, "" ]
+
+  #  Whether RootDeviceIops has been provided or not
+  HasRootDeviceIops: !Not
+    - !Equals [ !Ref RootDeviceIops, 0 ]
+
+  #  Whether RootDeviceSize has been provided or not
+  HasRootDeviceSize: !Not
+    - !Equals [ !Ref RootDeviceSize, 0 ]
+
+  #  Whether RootDeviceType has been provided or not
+  HasRootDeviceType: !Not
+    - !Equals [ !Ref RootDeviceType, "" ]
 
   # Whether the I/O performance can and should be set or not
   SetVolumeOptIops: !And
@@ -406,6 +474,28 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       AvailabilityZone: !Ref AvailabilityZone
+      BlockDeviceMappings:
+      - !If
+        - ConfigureRootDevice
+        - DeviceName: !Ref RootDeviceName
+          Ebs:
+            Encrypted: !If
+              - HasRootDeviceEncryption
+              - !Ref RootDeviceEncryption
+              - !Ref AWS::NoValue
+            Iops: !If
+              - HasRootDeviceIops
+              - !Ref RootDeviceIops
+              - !Ref AWS::NoValue
+            VolumeSize: !If
+              - HasRootDeviceSize
+              - !Ref RootDeviceSize
+              - !Ref AWS::NoValue
+            VolumeType: !If
+              - HasRootDeviceType
+              - !Ref RootDeviceType
+              - !Ref AWS::NoValue
+        - !Ref AWS::NoValue
       IamInstanceProfile: !If
         - HasIamInstanceProfile
         - !Ref IamInstanceProfile
