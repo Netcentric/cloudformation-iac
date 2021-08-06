@@ -28,6 +28,11 @@ Description: "CloudFormation IaC --- EC2 Application Load Balancer with optional
 #       true  -> Added
 #       false -> None [default]
 #
+#   WAF:
+#     HeaderName != "" && TokenString != ""
+#       true  -> WAF enabled
+#       false -> WAF disabled [default]
+#
 ################################################################################
 
 
@@ -81,6 +86,11 @@ Metadata:
       - HealthyStatusCode
       - HealthyThresholdCount
       - UnhealthyThresholdCount
+    - Label:
+        default: "WAF filter configuration (optional)"
+      Parameters:
+      - HeaderName
+      - TokenString
     - Label:
         default: "Target 01"
       Parameters:
@@ -247,6 +257,20 @@ Parameters:
     Default: 2
 
   #=======================================
+  # WAF filter configuration (optional)
+  #=======================================
+
+  HeaderName:
+    Description: "The name of the request header that will be scanned for the TokenString (example: x-origin-key)."
+    Type: String
+    Default: ""
+
+  TokenString:
+    Description: "The value that you want AWS WAF to search for. The maximum length of the value is 50 bytes."
+    Type: String
+    Default: ""
+
+  #=======================================
   # Target 01
   #=======================================
 
@@ -329,6 +353,13 @@ Conditions:
   # If the duration is 0, then stickiness will be disabled
   EnableStickiness: !Not
     - !Equals [ !Ref StickinessDuration, 0 ]
+
+  # If a Header and a Token have been provided, the WAF filter will be enabled
+  EnableWafFilter: !And
+    - !Not
+      - !Equals [ !Ref HeaderName, "" ]
+    - !Not
+      - !Equals [ !Ref TokenString, "" ]
 
   # If no 2nd Instance has been provided, we won't add a respective target
   Has2ndTarget: !Not
@@ -486,6 +517,55 @@ Resources:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: !Ref HttpsPort
       Protocol: "HTTPS"
+
+  #=======================================
+  # WAF Filter
+  #=======================================
+
+  WafByteMatchSet:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::ByteMatchSet
+    Properties:
+      ByteMatchTuples:
+      - FieldToMatch:
+          Data: !Ref HeaderName
+          Type: "HEADER"
+        PositionalConstraint: "EXACTLY"
+        TargetString: !Ref TokenString
+        TextTransformation: "NONE"
+      Name: !Sub "${RootStackName}-waf-verify-origin-matcher"
+
+  WafRule:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::Rule
+    Properties:
+      MetricName: "VerifyOriginRule"
+      Name: !Sub "${RootStackName}-waf-verify-origin-rule"
+      Predicates:
+      - DataId: !Ref WafByteMatchSet
+        Negated: false
+        Type: "ByteMatch"
+
+  WafWebAcl:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::WebACL
+    Properties:
+      DefaultAction:
+        Type: "BLOCK"
+      MetricName: "VerifyOrigin"
+      Name: !Sub "${RootStackName}-waf-verify-origin-acl"
+      Rules:
+      - Action:
+          Type: "ALLOW"
+        Priority: 1
+        RuleId: !Ref WafRule
+
+  WafWebAclAssociation:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref ApplicationLoadBalancer
+      WebACLId: !Ref WafWebAcl
 
   #=======================================
   # Route 53 DNS Records
