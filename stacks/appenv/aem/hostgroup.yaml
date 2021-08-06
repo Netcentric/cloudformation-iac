@@ -48,6 +48,10 @@ Metadata:
       Parameters:
       - AuthorImageId
       - AuthorInstanceType
+      - AuthorRootDeviceName
+      - AuthorRootDeviceIops
+      - AuthorRootDeviceSize
+      - AuthorRootDeviceType
       - AuthorSecurityGroupIds
       - AuthorVolumeOptIops
       - AuthorVolumeOptSize
@@ -66,6 +70,10 @@ Metadata:
       Parameters:
       - AuthorDispatcherImageId
       - AuthorDispatcherInstanceType
+      - AuthorDispatcherRootDeviceName
+      - AuthorDispatcherRootDeviceIops
+      - AuthorDispatcherRootDeviceSize
+      - AuthorDispatcherRootDeviceType
       - AuthorDispatcherSecurityGroupIds
       - AuthorDispatcherVolumeVarIops
       - AuthorDispatcherVolumeVarSize
@@ -76,6 +84,10 @@ Metadata:
       Parameters:
       - PublishImageId
       - PublishInstanceType
+      - PublishRootDeviceName
+      - PublishRootDeviceIops
+      - PublishRootDeviceSize
+      - PublishRootDeviceType
       - PublishSecurityGroupIds
       - PublishVolumeOptIops
       - PublishVolumeOptSize
@@ -94,6 +106,10 @@ Metadata:
       Parameters:
       - PublishDispatcherImageId
       - PublishDispatcherInstanceType
+      - PublishDispatcherRootDeviceName
+      - PublishDispatcherRootDeviceIops
+      - PublishDispatcherRootDeviceSize
+      - PublishDispatcherRootDeviceType
       - PublishDispatcherSecurityGroupIds
       - PublishDispatcherVolumeVarIops
       - PublishDispatcherVolumeVarSize
@@ -183,6 +199,27 @@ Parameters:
     Type: String
     Default: "t2.small"
 
+  AuthorRootDeviceName:
+    Description: "The root device name set by the AMI of the Author Instance (example: \"/dev/sda1\")."
+    Type: String
+    Default: ""
+
+  AuthorRootDeviceIops:
+    Description: "The number of I/O operations per second (IOPs) of the root Volume of the Author Instance."
+    Type: Number
+    Default: 0
+
+  AuthorRootDeviceSize:
+    Description: "The size of the root Volume of the Author Instance, in gibibytes."
+    Type: Number
+    Default: 0
+
+  AuthorRootDeviceType:
+    Description: "The type of the root Volume of the Author Instance."
+    Type: String
+    AllowedValues: [ "", "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: ""
+
   AuthorSecurityGroupIds:
     Description: "A list that contains the IDs for VPC Security Groups to assign to the Author Instance."
     Type: CommaDelimitedList
@@ -265,6 +302,27 @@ Parameters:
     Type: String
     Default: "t2.small"
 
+  AuthorDispatcherRootDeviceName:
+    Description: "The root device name set by the AMI of the Author Dispatcher Instance (example: \"/dev/sda1\")."
+    Type: String
+    Default: ""
+
+  AuthorDispatcherRootDeviceIops:
+    Description: "The number of I/O operations per second (IOPs) of the root Volume of the Author Dispatcher Instance."
+    Type: Number
+    Default: 0
+
+  AuthorDispatcherRootDeviceSize:
+    Description: "The size of the root Volume of the Author Dispatcher Instance, in gibibytes."
+    Type: Number
+    Default: 0
+
+  AuthorDispatcherRootDeviceType:
+    Description: "The type of the root Volume of the Author Dispatcher Instance."
+    Type: String
+    AllowedValues: [ "", "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: ""
+
   AuthorDispatcherSecurityGroupIds:
     Description: "A list that contains the IDs for VPC Security Groups to assign to the Author Dispatcher Instance."
     Type: CommaDelimitedList
@@ -303,6 +361,27 @@ Parameters:
     Description: "The instance type for the Publish Instance (examples: \"t3a.micro\" or \"m5.xlarge\")."
     Type: String
     Default: "t2.small"
+
+  PublishRootDeviceName:
+    Description: "The root device name set by the AMI of the Publish Instance (example: \"/dev/sda1\")."
+    Type: String
+    Default: ""
+
+  PublishRootDeviceIops:
+    Description: "The number of I/O operations per second (IOPs) of the root Volume of the Publish Instance."
+    Type: Number
+    Default: 0
+
+  PublishRootDeviceSize:
+    Description: "The size of the root Volume of the Publish Instance, in gibibytes."
+    Type: Number
+    Default: 0
+
+  PublishRootDeviceType:
+    Description: "The type of the root Volume of the Publish Instance."
+    Type: String
+    AllowedValues: [ "", "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: ""
 
   PublishSecurityGroupIds:
     Description: "A list that contains the IDs for VPC Security Groups to assign to the Publish Instance."
@@ -385,6 +464,27 @@ Parameters:
     Description: "The instance type for the Publish Dispatcher Instance (examples: \"t3a.micro\" or \"m5.xlarge\")."
     Type: String
     Default: "t2.small"
+
+  PublishDispatcherRootDeviceName:
+    Description: "The root device name set by the AMI of the Publish Dispatcher Instance (example: \"/dev/sda1\")."
+    Type: String
+    Default: ""
+
+  PublishDispatcherRootDeviceIops:
+    Description: "The number of I/O operations per second (IOPs) of the root Volume of the Publish Dispatcher Instance."
+    Type: Number
+    Default: 0
+
+  PublishDispatcherRootDeviceSize:
+    Description: "The size of the root Volume of the Publish Dispatcher Instance, in gibibytes."
+    Type: Number
+    Default: 0
+
+  PublishDispatcherRootDeviceType:
+    Description: "The type of the root Volume of the Publish Dispatcher Instance."
+    Type: String
+    AllowedValues: [ "", "standard", "io1", "io2", "gp2", "gp3", "sc1", "st1" ]
+    Default: ""
 
   PublishDispatcherSecurityGroupIds:
     Description: "A list that contains the IDs for VPC Security Groups to assign to the Publish Dispatcher Instance."
@@ -495,6 +595,14 @@ Resources:
         FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
         FeatureUptimeWindows: !Join [ ",", !Ref FeatureUptimeWindows ]
 
+        # / (optional)
+        #
+        RootDeviceName: !Ref AuthorRootDeviceName
+        RootDeviceEncryption: !Ref FeatureVolumeEncryption
+        RootDeviceIops: !Ref AuthorRootDeviceIops
+        RootDeviceSize: !Ref AuthorRootDeviceSize
+        RootDeviceType: !Ref AuthorRootDeviceType
+
         # /opt (optional)
         #
         VolumeOptEncryption: !Ref FeatureVolumeEncryption
@@ -554,6 +662,14 @@ Resources:
         FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
         FeatureUptimeWindows: !Join [ ",", !Ref FeatureUptimeWindows ]
 
+        # / (optional)
+        #
+        RootDeviceName: !Ref AuthorDispatcherRootDeviceName
+        RootDeviceEncryption: !Ref FeatureVolumeEncryption
+        RootDeviceIops: !Ref AuthorDispatcherRootDeviceIops
+        RootDeviceSize: !Ref AuthorDispatcherRootDeviceSize
+        RootDeviceType: !Ref AuthorDispatcherRootDeviceType
+
         # /var (optional)
         #
         VolumeVarEncryption: !Ref FeatureVolumeEncryption
@@ -599,6 +715,14 @@ Resources:
         #
         FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
         FeatureUptimeWindows: !Join [ ",", !Ref FeatureUptimeWindows ]
+
+        # / (optional)
+        #
+        RootDeviceName: !Ref PublishRootDeviceName
+        RootDeviceEncryption: !Ref FeatureVolumeEncryption
+        RootDeviceIops: !Ref PublishRootDeviceIops
+        RootDeviceSize: !Ref PublishRootDeviceSize
+        RootDeviceType: !Ref PublishRootDeviceType
 
         # /opt (optional)
         #
@@ -658,6 +782,14 @@ Resources:
         #
         FeatureAutoSnapshot: !Ref FeatureAutoSnapshot
         FeatureUptimeWindows: !Join [ ",", !Ref FeatureUptimeWindows ]
+
+        # / (optional)
+        #
+        RootDeviceName: !Ref PublishDispatcherRootDeviceName
+        RootDeviceEncryption: !Ref FeatureVolumeEncryption
+        RootDeviceIops: !Ref PublishDispatcherRootDeviceIops
+        RootDeviceSize: !Ref PublishDispatcherRootDeviceSize
+        RootDeviceType: !Ref PublishDispatcherRootDeviceType
 
         # /var (optional)
         #
