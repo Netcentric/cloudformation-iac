@@ -51,6 +51,7 @@ Metadata:
     - Label:
         default: "ALB configuration"
       Parameters:
+      - AllowAllTraffic
       - DeregistrationDelay
       - EnableHttp2
       - IdleTimeout
@@ -126,6 +127,12 @@ Parameters:
   # ALB configuration
   #=======================================
 
+  AllowAllTraffic:
+    Description: "Whether the Load Balancer should permit TCP or UDP flows for all traffic (0.0.0.0/0) in both directions for all ports (0-65535) or not."
+    Type: String
+    AllowedValues: [ "true", "false" ]
+    Default: "true"
+
   DeregistrationDelay:
     Description: "The amount of time, in seconds, for Elastic Load Balancing to wait before changing the state of a deregistering target from draining to unused (0 to 3600)."
     Type: Number
@@ -151,6 +158,7 @@ Parameters:
   SecurityGroupIds:
     Description: "A list that contains the IDs for VPC Security Groups to assign to the Load Balancer."
     Type: CommaDelimitedList
+    Default: ""
 
   StickinessDuration:
     Description: "The time period, in seconds, during which requests from a client should be routed to the same target (0 to 604800)."
@@ -294,6 +302,17 @@ Parameters:
 ################################################################################
 
 Conditions:
+  # If the HTTP port is 0, then HTTP traffic will be disabled
+  AllowAllTrafficHttp: !And
+    - !Equals [ !Ref AllowAllTraffic, "true" ]
+    - !Not
+      - !Equals [ !Ref HttpPort, 0 ]
+
+  # If the HTTPS port is 0, then HTTPS traffic will be disabled
+  AllowAllTrafficHttps: !And
+    - !Equals [ !Ref AllowAllTraffic, "true" ]
+    - !Not
+      - !Equals [ !Ref HttpsPort, 0 ]
 
   # If a Hosted Zone has been provided, we will create a DNS Record
   CreateDnsRecord: !Not
@@ -331,6 +350,38 @@ Conditions:
 
 Resources:
   #=======================================
+  # Security Groups
+  #=======================================
+
+  SecurityGroupLb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "Rules that control the traffic from and to the Load Balancer ${RootStackName}-alb-${Designation}"
+      SecurityGroupIngress:
+      # If HTTP is enabled, then let the HTTP port pass through this Security Group
+      - !If
+        - AllowAllTrafficHttp
+        - CidrIp: "0.0.0.0/0"
+          Description: "Internet HTTP"
+          FromPort: !Ref HttpPort
+          IpProtocol: "tcp"
+          ToPort: !Ref HttpPort
+        - !Ref AWS::NoValue
+      # If HTTPS is enabled, then let the HTTPS port pass through this Security Group
+      - !If
+        - AllowAllTrafficHttps
+        - CidrIp: "0.0.0.0/0"
+          Description: "Internet HTTPS"
+          FromPort: !Ref HttpsPort
+          IpProtocol: "tcp"
+          ToPort: !Ref HttpsPort
+        - !Ref AWS::NoValue
+      Tags:
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-sg-alb-${Designation}"
+      VpcId: !Ref VpcId
+
+  #=======================================
   # ALB
   #=======================================
 
@@ -343,7 +394,15 @@ Resources:
       - Key: "routing.http2.enabled"
         Value: !Ref EnableHttp2
       Scheme: !Ref Scheme
-      SecurityGroups: !Ref SecurityGroupIds
+      # This is the cloudformation way to add an element to a list
+      SecurityGroups: !Split
+        - ","
+        - !Join
+          - ","
+          - - !GetAtt SecurityGroupLb.GroupId
+            - !Join
+              - ","
+              - !Ref SecurityGroupIds
       Subnets: !Ref SubnetIds
       Tags:
       - Key: "Name"
@@ -450,3 +509,18 @@ Resources:
         # Remote DNS Record configuration (optional)
         #
         ServiceToken: !Ref DnsServiceToken
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+  SecurityGroupLb:
+    Description: "The Security Group that is attached to the Load Balancer ${RootStackName}-alb-${Designation}."
+    Value: !Ref SecurityGroupLb
