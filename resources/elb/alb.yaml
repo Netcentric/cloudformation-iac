@@ -106,6 +106,7 @@ Metadata:
     - Label:
         default: "DNS Record configuration (optional)"
       Parameters:
+      - DnsName
       - DnsServiceToken
       - HostedZoneName
       - TimeToLive
@@ -300,6 +301,11 @@ Parameters:
   # DNS Record configuration (optional)
   #=======================================
 
+  DnsName:
+    Description: "The name that will be used for this load balancers DNS name (example: \"a.assets\"; default: \"${RootStackName}-lb-${Designation}\")."
+    Type: String
+    Default: ""
+
   DnsServiceToken:
     Description: "The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack)."
     Type: String
@@ -368,6 +374,10 @@ Conditions:
   # If no 3rd Instance has been provided, we won't add a respective target
   Has3rdTarget: !Not
     - !Equals [ !Ref Instance3Id, "" ]
+
+  # Whether DnsName has been explicitly provided or not
+  HasDnsName: !Not
+    - !Equals [ !Ref DnsName, "" ]
 
 
 ################################################################################
@@ -580,7 +590,10 @@ Resources:
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub "${RootStackName}-lb-${Designation}"
+        DnsName: !If
+          - HasDnsName
+          - !Ref DnsName
+          - !Sub "${RootStackName}-lb-${Designation}"
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt ApplicationLoadBalancer.DNSName
         TimeToLive: !Ref TimeToLive

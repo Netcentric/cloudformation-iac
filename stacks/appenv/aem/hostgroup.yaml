@@ -46,6 +46,7 @@ Metadata:
     - Label:
         default: "Author"
       Parameters:
+      - AuthorHostName
       - AuthorImageId
       - AuthorInstanceType
       - AuthorRootDeviceName
@@ -68,6 +69,7 @@ Metadata:
     - Label:
         default: "Author Dispatcher (optional)"
       Parameters:
+      - AuthorDispatcherHostName
       - AuthorDispatcherImageId
       - AuthorDispatcherInstanceType
       - AuthorDispatcherRootDeviceName
@@ -82,6 +84,7 @@ Metadata:
     - Label:
         default: "Publish"
       Parameters:
+      - PublishHostName
       - PublishImageId
       - PublishInstanceType
       - PublishRootDeviceName
@@ -104,6 +107,7 @@ Metadata:
     - Label:
         default: "Publish Dispatcher (optional)"
       Parameters:
+      - PublishDispatcherHostName
       - PublishDispatcherImageId
       - PublishDispatcherInstanceType
       - PublishDispatcherRootDeviceName
@@ -188,6 +192,11 @@ Parameters:
   #=======================================
   # Author (optional)
   #=======================================
+
+  AuthorHostName:
+    Description: "The name that will be used for the Author Instance and, if created, its DNS name."
+    Type: String
+    Default: ""
 
   AuthorImageId:
     Description: "The unique ID of the Amazon Machine Image (AMI) the Author Instance will be created from."
@@ -292,6 +301,11 @@ Parameters:
   # Author Dispatcher (optional)
   #=======================================
 
+  AuthorDispatcherHostName:
+    Description: The name that will be used for the Author Dispatcher Instance and, if created, its DNS name."
+    Type: String
+    Default: ""
+
   AuthorDispatcherImageId:
     Description: "The unique ID of the Amazon Machine Image (AMI) the Author Dispatcher Instance will be created from (if this value is empty the Instance will not be created)."
     Type: String
@@ -352,6 +366,11 @@ Parameters:
   #=======================================
   # Publish
   #=======================================
+
+  PublishHostName:
+    Description: "The name that will be used for the Publish Instance and, if created, its DNS name."
+    Type: String
+    Default: ""
 
   PublishImageId:
     Description: "The unique ID of the Amazon Machine Image (AMI) the Publish Instance will be created from."
@@ -454,6 +473,11 @@ Parameters:
   #=======================================
   # Publish Dispatcher (optional)
   #=======================================
+
+  PublishDispatcherHostName:
+    Description: "The name that will be used for the Publish Dispatcher Instance and, if created, its DNS name."
+    Type: String
+    Default: ""
 
   PublishDispatcherImageId:
     Description: "The unique ID of the Amazon Machine Image (AMI) the Publish Dispatcher Instance will be created from (if this value is empty the Instance will not be created)."
@@ -583,6 +607,7 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        HostName: !Ref AuthorHostName
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref AuthorImageId
         InstanceType: !Ref AuthorInstanceType
@@ -650,6 +675,7 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        HostName: !Ref AuthorDispatcherHostName
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref AuthorDispatcherImageId
         InstanceType: !Ref AuthorDispatcherInstanceType
@@ -704,6 +730,7 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        HostName: !Ref PublishHostName
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref PublishImageId
         InstanceType: !Ref PublishInstanceType
@@ -771,6 +798,7 @@ Resources:
         # Instance configuration
         #
         AvailabilityZone: !Ref AvailabilityZone
+        HostName: !Ref PublishDispatcherHostName
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref PublishDispatcherImageId
         InstanceType: !Ref PublishDispatcherInstanceType
