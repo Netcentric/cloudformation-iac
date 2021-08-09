@@ -41,6 +41,7 @@ Metadata:
       - AvailabilityZone
       - HostName
       - IamInstanceProfile
+      - IamManagedPolicies
       - ImageId
       - InstanceType
       - RootKeyName
@@ -129,8 +130,13 @@ Parameters:
     Default: ""
 
   IamInstanceProfile:
-    Description: "The ARN of an IAM Instance Profile that is used to grant permissions to this EC2 Instance."
+    Description: "The ARN of an IAM Instance Profile that is used to grant permissions to this EC2 Instance (takes precedence over IamManagedPolicies)."
     Type: String
+    Default: ""
+
+  IamManagedPolicies:
+    Description: "The ARNs of IAM Managed Policies that are used to grant permissions to this EC2 Instance (will be used to create an Instance Profile, if IamInstanceProfile has not been specified)."
+    Type: CommaDelimitedList
     Default: ""
 
   ImageId:
@@ -357,6 +363,12 @@ Conditions:
   HasIamInstanceProfile: !Not
     - !Equals [ !Ref IamInstanceProfile, "" ]
 
+  # Whether IAM Managed Policies have been provided or not
+  HasIamManagedPolicies: !Not
+    - !Equals
+      - !Join [ "", !Ref IamManagedPolicies ]
+      - ""
+
   #----------------------------
   # Network
   #----------------------------
@@ -470,6 +482,38 @@ Resources:
   # Instance
   #=======================================
 
+  #----------------------------
+  # Instance Profile
+  #----------------------------
+
+  InstanceRole:
+    Condition: HasIamManagedPolicies
+    Type: AWS::IAM::Role
+    Properties:
+      # Allow the EC2 service to assume this role
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+        Version: "2012-10-17"
+      Description: !Sub "Role that defines the privileges of the EC2 Instance \"${RootStackName}-instance-${Designation}\"."
+      ManagedPolicyArns: !Ref IamManagedPolicies
+
+  InstanceProfile:
+    Condition: HasIamManagedPolicies
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+      - !Ref InstanceRole
+
+  #----------------------------
+  # Instance
+  #----------------------------
+
   Instance:
     Type: AWS::EC2::Instance
     Properties:
@@ -499,7 +543,10 @@ Resources:
       IamInstanceProfile: !If
         - HasIamInstanceProfile
         - !Ref IamInstanceProfile
-        - !Ref AWS::NoValue
+        - !If
+          - HasIamManagedPolicies
+          - !Ref InstanceProfile
+          - !Ref AWS::NoValue
       ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
       KeyName: !Ref RootKeyName
