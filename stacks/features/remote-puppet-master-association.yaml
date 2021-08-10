@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- Infrastructure required to associate EC2 Instances with a Puppet Master in a different AWS account."
+
+################################################################################
+#
+# Decision Trees: none
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - RootStackName
+    - Label:
+        default: "General configuration"
+      Parameters:
+      - RemoteNodeRole
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  RootStackName:
+    Description: "Name of the top-level stack to which this stack, if nested, ultimately belongs (this stacks name else)."
+    Type: String
+
+  #----------------------------
+  # General configuration
+  #----------------------------
+
+  RemoteNodeRole:
+    Description: "The ARN of the remote IAM Role that needs to be assumed by EC2 Instances to enable them to interact with the remote Puppet Master."
+    Type: String
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+
+  NodePolicyAllowDescribeInstances:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: "Allows the owners of this Policy to read EC2 Tags and the details of EC2 Instances."
+      PolicyDocument:
+        Statement:
+        - Action:
+          - "ec2:DescribeTags"
+          - "ec2:DescribeInstances"
+          Effect: "Allow"
+          Resource: "*"
+        Version: "2012-10-17"
+
+  NodePolicyAllowAssumeRole:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: "Allow the owners of this Policy to assume the provided role."
+      PolicyDocument:
+        Statement:
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Resource: !Ref RemoteNodeRole
+        Version: "2012-10-17"
+
+  NodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      # Allow the EC2 service to assume this role
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+        Version: "2012-10-17"
+      Description: "Role to allow the AWS EC2 service in this account to assume the specified role in a different AWS account."
+      ManagedPolicyArns:
+      - !Ref NodePolicyAllowDescribeInstances
+      - !Ref NodePolicyAllowAssumeRole
+
+  NodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+      - !Ref NodeRole
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+  # For Puppet Nodes
+  #
+  NodeInstanceProfile:
+    Description: "The ARN of the local IAM InstanceProfile that needs to be attached to EC2 Instances to enable them to interact with the remote Puppet Master."
+    Value: !Ref NodeInstanceProfile
+
+  NodePolicies:
+    Description: "The ARN of the IAM Managed Policies that need to be assigned to EC2 Instances to enable them to interact with the remote Puppet Master."
+    Value: !Join
+      - ","
+      - - !Ref NodePolicyAllowDescribeInstances
+        - !Ref NodePolicyAllowAssumeRole
+
+  NodeRole:
+    Description: "The ARN of the local IAM Role that needs to be assumed by EC2 Instances to enable them to interact with the remote Puppet Master."
+    Value: !GetAtt NodeRole.Arn
