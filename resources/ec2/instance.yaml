@@ -653,6 +653,22 @@ Resources:
                 # extra optional settings
                 AWS_CLI_EXTRA_OPTS=()
 
+                # Override the Instances AWS credentials with the one provided by the node association role for the remote Puppet Master
+                function set_remote_credentials {
+                  if [ -n "${REMOTE_AWS_ACCESS_KEY_ID-}" ] && [ -n "${REMOTE_AWS_SECRET_ACCESS_KEY-}" ]  && [ -n "${REMOTE_AWS_SESSION_TOKEN-}" ]; then
+                    export AWS_ACCESS_KEY_ID=${REMOTE_AWS_ACCESS_KEY_ID}
+                    export AWS_SECRET_ACCESS_KEY=${REMOTE_AWS_SECRET_ACCESS_KEY}
+                    export AWS_SESSION_TOKEN=${REMOTE_AWS_SESSION_TOKEN}
+                  fi
+                }
+
+                # Cleanup the credential override so that the ones of the Instance are used again
+                function unset_remote_credentials {
+                  unset AWS_SESSION_TOKEN
+                  unset AWS_ACCESS_KEY_ID
+                  unset AWS_SECRET_ACCESS_KEY
+                }
+
                 function set_aws_settings {
                   export PP_INSTANCE_ID=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/instance-id)
 
@@ -660,9 +676,10 @@ Resources:
                   export PP_IMAGE_NAME=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/ami-id)
                   export PP_REGION=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
 
-                  # we're detecting if a tag is set. If so, override anything in the file
+                  # Detecting if a tag is set. If so, override anything in the file
                   export TAG_SERVER=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_server`].Value' --output text)
                   export TAG_REGION=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_region`].Value' --output text)
+                  export OCM_ROLE=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_role`].Value' --output text)
 
                   if [ -n ${TAG_SERVER} ] && [ ! -z ${TAG_SERVER} ]; then
                     export OCM_SERVER=${TAG_SERVER}
@@ -681,16 +698,25 @@ Resources:
                     export OCM_REGION=${PP_REGION}
                   fi
 
-                  # get PuppetMaster metadata
-                  PM_ENDPOINT=$(/usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[?ServerName=='${OCM_SERVER}'].Endpoint" --output text)
+                  # If a remote "NodeAssociationRole" has been specified, assume it the to get the credentials required for interacting with the remote Puppet Master
+                  if [ ! -z ${OCM_ROLE} ]; then
+                    ASSUME_ROLE_OUTPUT=$(/usr/local/bin/aws sts assume-role --role-arn ${OCM_ROLE} --role-session-name "NodeAssociation@${PP_INSTANCE_ID}")
+                    export REMOTE_AWS_ACCESS_KEY_ID=$(echo ${ASSUME_ROLE_OUTPUT} | jq .Credentials.AccessKeyId | xargs)
+                    export REMOTE_AWS_SECRET_ACCESS_KEY=$(echo ${ASSUME_ROLE_OUTPUT} | jq .Credentials.SecretAccessKey | xargs)
+                    export REMOTE_AWS_SESSION_TOKEN=$(echo ${ASSUME_ROLE_OUTPUT} | jq .Credentials.SessionToken | xargs)
+                  fi
 
-                  # set global settings
-                  export PUPPETSERVER=$PM_ENDPOINT
+                  # Set global settings
+                  set_remote_credentials
+                  export PUPPETSERVER=$(/usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[?ServerName=='${OCM_SERVER}'].Endpoint" --output text)
+                  unset_remote_credentials
                   export PRUBY='/opt/puppetlabs/puppet/bin/ruby'
                   export PUPPET='/opt/puppetlabs/bin/puppet'
                   export DAEMONSPLAY='true'
                   export SPLAYLIMIT='180'
                   export PUPPET_CA_PATH='/etc/puppetlabs/puppet/ssl/certs/ca.pem'
+                  export PUPPET_CRL_PATH='/etc/puppetlabs/puppet/ssl/crl.pem'
+                  export AGENT_CATALOG_RUN_LOCK='/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock'
 
                   # If we cannot get determine PUPPETSERVER, we stop here and try again later (thanks to the cron job).
                   if [ -z ${PUPPETSERVER} ]; then
@@ -728,7 +754,9 @@ Resources:
                     return 0
                   fi
 
+                  set_remote_credentials
                   /usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > /etc/puppetlabs/puppet/ssl/certs/ca.pem
+                  unset_remote_credentials
                 }
 
                 function install_puppet {
@@ -738,7 +766,10 @@ Resources:
                     return 0
                   fi
 
+                  # Install the Puppet Agent using the scripts provided by the Puppet Master
                   ADD_EXTENSIONS=$(generate_csr_attributes)
+                  [[ $? -eq 0 ]] || ADD_EXTENSIONS=''
+
                   curl --cacert /etc/puppetlabs/puppet/ssl/certs/ca.pem --retry 3 "https://${PUPPETSERVER}:8140/packages/current/install.bash" | \
                     /bin/bash -s agent:certname=${PP_INSTANCE_ID} \
                       agent:splay=${DAEMONSPLAY} \
@@ -746,6 +777,8 @@ Resources:
                       extension_requests:pp_region=${PP_REGION} \
                       extension_requests:pp_image_name=${PP_IMAGE_NAME} ${ADD_EXTENSIONS}
 
+                  # Register the Puppet Master
+                  ${PUPPET} config set server ${PUPPETSERVER} --section main
                   ${PUPPET} resource service puppet ensure=stopped
                 }
 
@@ -793,6 +826,16 @@ Resources:
                   ${PUPPET} bootstrap purge
                   ${PUPPET} bootstrap csr
 
+                  set_remote_credentials
+
+                  # Workaround for failing automatic certificate download by Puppet, if the Puppet Master is in a different account
+                  # Re-download CA certificate
+                  /usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > "${PUPPET_CA_PATH}"
+
+                  # Re-download Certificate Revocation List
+                  /usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CRL'].Value" --output text > "${PUPPET_CRL_PATH}"
+                  # END Workaround
+
                   # submit the cert
                   ASSOCIATE_TOKEN=$(/usr/local/bin/aws opsworks-cm associate-node --region ${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --node-name ${CERTNAME} --engine-attributes Name=PUPPET_NODE_CSR,Value="`cat ${PP_CSR_PATH}`" --query "NodeAssociationStatusToken" --output text)
 
@@ -801,14 +844,39 @@ Resources:
                   # install and verify
                   /usr/local/bin/aws opsworks-cm describe-node-association-status --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query 'EngineAttributes[0].Value' --output text > ${PP_CERT_PATH}
 
-                  ${PUPPET} bootstrap verify
+                  unset_remote_credentials
                 }
 
                 function run_puppet {
                   sleep $[ ( ${RANDOM} % ${SPLAYLIMIT} ) + 1]s
                   ${PUPPET} agent --enable
-                  ${PUPPET} agent --onetime --verbose --no-daemonize --no-usecacheonfailure --no-splay --show_diff
+
+                  sleep $[ ( ${RANDOM} % ${SPLAYLIMIT} ) + 1]s
+                  waitfor_puppet_finish
                   ${PUPPET} resource service puppet ensure=running enable=true
+
+                  sleep $[ ( ${RANDOM} % ${SPLAYLIMIT} ) + 1]s
+                  waitfor_puppet_finish
+                  ${PUPPET} agent --onetime --verbose --no-daemonize --no-usecacheonfailure --no-splay --show_diff
+
+                  sleep $[ ( ${RANDOM} % ${SPLAYLIMIT} ) + 1]s
+                  waitfor_puppet_finish
+                  ${PUPPET} bootstrap verify
+                }
+
+                function waitfor_puppet_finish {
+                  local rcnt=10
+
+                  while [ -f ${AGENT_CATALOG_RUN_LOCK} ]; do
+                    echo "detected ${AGENT_CATALOG_RUN_LOCK}. Sleeping"
+                    sleep 30
+
+                    let rcnt=$rcnt-1
+                    if [ $rcnt -eq 0 ]; then
+                      echo "Maximal iterations of sleep time reached. Giving up"
+                      break
+                    fi
+                  done
                 }
 
                 # Check for existence of the PID file to prevent parallel executions of this script
