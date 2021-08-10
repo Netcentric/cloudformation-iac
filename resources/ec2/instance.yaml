@@ -1099,7 +1099,8 @@ Resources:
           commands:
             0100_sysconfig:
               command: !Sub
-                - "echo HOSTNAME=${ActualHostName} >> /etc/sysconfig/network"
+                # "Fn::Sub" prevents bash parameter substitution, so we use "sed" instead
+                - "HOSTNAME=$(echo ${ActualHostName}-${HostedZoneName} | sed 's/\\./-/g'); echo HOSTNAME=$HOSTNAME >> /etc/sysconfig/network"
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
@@ -1107,7 +1108,8 @@ Resources:
             0200_systemd:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: !Sub
-                - "hostnamectl set-hostname ${ActualHostName}"
+                # "Fn::Sub" prevents bash parameter substitution, so we use "sed" instead
+                - "HOSTNAME=$(echo ${ActualHostName}-${HostedZoneName} | sed 's/\\./-/g'); hostnamectl set-hostname $HOSTNAME"
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
@@ -1211,7 +1213,10 @@ Resources:
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub "${RootStackName}-${Designation}"
+        DnsName: !If
+          - HasHostName
+          - !Ref HostName
+          - !Sub "${RootStackName}-${Designation}"
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt Instance.PrivateIp
         Type: "A"
