@@ -585,29 +585,48 @@ Resources:
         Fn::Base64:
           !Sub |
             #!/usr/bin/env bash
-            # CentOS (&& RHEL?)
-            # Alternatives: http://www.danieleyer.com/blog/2016/07/15/adding-aws-cfn-bootstrap-cloudformation-helper-scripts-to-custom-linux-amis/
 
-            # Setup cfn-bootstrap
-            if [ -f /etc/centos-release ]; then
-              # CentOS
-              # See: https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
-
-              yum install --assumeyes epel-release
-              yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm
-              ln --symbolic /usr/local/lib/python2.7/site-packages/cfnbootstrap /usr/lib/python2.7/site-packages/cfnbootstrap
-            elif [ -f /etc/redhat-release ]; then
-              # RHEL
-              # See: https://aws.amazon.com/premiumsupport/knowledge-center/install-cloudformation-scripts/
-
-              yum install --assumeyes python-setuptools wget
-              mkdir -p /opt/aws/bin
-              wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-              easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz
+            if [ -f "/etc/os-release" ]; then
+              RELEASE_FILE="/etc/os-release"
+            else
+              RELEASE_FILE="/usr/lib/os-release"
             fi
 
-            # Run cfn-init
-            /opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --resource=Instance --configsets=default,init-set,restart-set --region=${AWS::Region}
+            OS_ID="$(grep -oP '(?<=^ID=")[ [:alnum:]]*' /etc/os-release)"
+            OS_VERSION="$(grep -oP '(?<=^VERSION_ID=")[ [:alnum:]]*' /etc/os-release)"
+
+            # Setup cfn-bootstrap
+            case "$OS_ID" in
+              'centos'|'rhel')
+                case "$OS_VERSION" in
+                  '7')
+                    ARCHIVE='aws-cfn-bootstrap-latest.tar.gz'
+                    EASY_INSTALL='/usr/bin/easy_install'
+
+                    # Install what is required for the bootstrapping
+                    yum install --assumeyes jq
+                    ;;
+                  '8')
+                    ARCHIVE='aws-cfn-bootstrap-py3-latest.tar.gz'
+                    EASY_INSTALL='/usr/bin/easy_install-3'
+
+                    # Install latest Python 3 (Python 2 went EoL on 2020-01-01)
+                    dnf install --assumeyes python3
+                    alternatives --set python /usr/bin/python3
+
+                    # Install what is required for the bootstrapping
+                    dnf install --assumeyes jq
+                    ;;
+                  *) exit 1
+                esac
+
+                curl "https://s3.amazonaws.com/cloudformation-examples/$ARCHIVE" --output "/tmp/$ARCHIVE"
+                $EASY_INSTALL "/tmp/$ARCHIVE"
+                ;;
+              *) exit 1
+            esac
+
+            cfn-init --verbose --stack ${AWS::StackName} --resource Instance --configsets default,init-set,restart-set --region ${AWS::Region}
     Metadata:
       AWS::CloudFormation::Init:
         configSets:
@@ -766,16 +785,28 @@ Resources:
                     return 0
                   fi
 
-                  # Install the Puppet Agent using the scripts provided by the Puppet Master
-                  ADD_EXTENSIONS=$(generate_csr_attributes)
-                  [[ $? -eq 0 ]] || ADD_EXTENSIONS=''
+                  { # try
+                    # Install the Puppet Agent using the scripts provided by the Puppet Master
+                    ADD_EXTENSIONS=$(generate_csr_attributes)
+                    [[ $? -eq 0 ]] || ADD_EXTENSIONS=''
 
-                  curl --cacert /etc/puppetlabs/puppet/ssl/certs/ca.pem --retry 3 "https://${PUPPETSERVER}:8140/packages/current/install.bash" | \
-                    /bin/bash -s agent:certname=${PP_INSTANCE_ID} \
-                      agent:splay=${DAEMONSPLAY} \
-                      extension_requests:pp_instance_id=${PP_INSTANCE_ID} \
-                      extension_requests:pp_region=${PP_REGION} \
-                      extension_requests:pp_image_name=${PP_IMAGE_NAME} ${ADD_EXTENSIONS}
+                    # NOTE: Other than the original script, we are going to use the host name for the certificate to make it more human readable
+                    curl --cacert ${PUPPET_CA_PATH} --retry 3 "https://${PUPPETSERVER}:8140/packages/current/install.bash" | \
+                      /bin/bash -s agent:certname=$(hostname) \
+                        agent:splay=${DAEMONSPLAY} \
+                        extension_requests:pp_instance_id=${PP_INSTANCE_ID} \
+                        extension_requests:pp_region=${PP_REGION} \
+                        extension_requests:pp_image_name=${PP_IMAGE_NAME} ${ADD_EXTENSIONS}
+                  } || { # catch
+                    if which dnf > /dev/null 2>&1; then
+                      # Install the Puppet Agent using a package repository, since RHEL/CentOS 8 are not supported by the PE version provided by AWS (2018.1.7)
+                      dnf --assumeyes install https://yum.puppetlabs.com/puppet5/el/8/x86_64/puppet5-release-5.0.0-14.el8.noarch.rpm
+                      dnf --assumeyes install puppet-agent
+                    else
+                      echo "Installation of Puppet failed, exiting"
+                      exit 1
+                    fi
+                  }
 
                   # Register the Puppet Master
                   ${PUPPET} config set server ${PUPPETSERVER} --section main
