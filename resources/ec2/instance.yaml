@@ -633,7 +633,6 @@ Resources:
           default:
           - SetHostname
           - EnsureAwsCli
-          - EnsureCfnBootstrap
           - EnsureCfnHup
           - BootstrapPuppet
           - BootstrapVolumes
@@ -646,15 +645,7 @@ Resources:
         BootstrapPuppet:
           files:
             # Script to associate this node with an OpsWorks Puppet Master
-            # Source: https://docs.aws.amazon.com/opsworks/latest/userguide/opspup-unattend-assoc.html
-            #
-            # Modifications:
-            #   * Removed unused option to hard code values
-            #   * Removed installation of the AWS CLI since it would've worked only for Ubuntu anyway
-            #   * Added alternative that uses the current region for OCM_REGION if the 'ocm_region' Tag is not set
-            #   * Added clean up for downloaded files (/tmp/puppet-agent-bootstrap-0.2.1.tar.gz)
-
-            # sets up puppet and connects it to the puppetmaster
+            # Based on: https://github.com/awsdocs/aws-opsworks-user-guide/blob/master/doc_source/opspup-unattend-assoc.md
             /opt/aws/init/bootstrap-puppet.sh:
               content: |
                 #!/usr/bin/env bash
@@ -669,7 +660,7 @@ Resources:
                 # PID file to prevent parallel executions of this script
                 PID_FILE="/var/run/$(basename $0).pid"
 
-                # extra optional settings
+                # Additional optional settings
                 AWS_CLI_EXTRA_OPTS=()
 
                 # Override the Instances AWS credentials with the one provided by the node association role for the remote Puppet Master
@@ -691,18 +682,13 @@ Resources:
                 function set_aws_settings {
                   export PP_INSTANCE_ID=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/instance-id)
 
-                  # this uses the EC2 instance ID as the node name
                   export PP_IMAGE_NAME=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/ami-id)
                   export PP_REGION=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
 
                   # Detecting if a tag is set. If so, override anything in the file
-                  export TAG_SERVER=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_server`].Value' --output text)
-                  export TAG_REGION=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_region`].Value' --output text)
+                  export OCM_SERVER=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_server`].Value' --output text)
+                  export OCM_REGION=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_region`].Value' --output text)
                   export OCM_ROLE=$(/usr/local/bin/aws ec2 describe-tags --region ${PP_REGION} --filters "Name=resource-id,Values=${PP_INSTANCE_ID}" --query 'Tags[?Key==`ocm_role`].Value' --output text)
-
-                  if [ -n ${TAG_SERVER} ] && [ ! -z ${TAG_SERVER} ]; then
-                    export OCM_SERVER=${TAG_SERVER}
-                  fi
 
                   # If no OCM Server is specified, there's nothing to do for us. Clean up and stop
                   if [ -z ${OCM_SERVER} ]; then
@@ -711,9 +697,8 @@ Resources:
                     exit 0
                   fi
 
-                  if [ -n ${TAG_REGION} ] && [ ! -z ${TAG_REGION} ]; then
-                    export OCM_REGION=${TAG_REGION}
-                  else
+                  # If the region of the OCM Server is not specified, we'll assume it is in the same region as this Instance
+                  if [ -z ${OCM_REGION} ]; then
                     export OCM_REGION=${PP_REGION}
                   fi
 
@@ -774,7 +759,7 @@ Resources:
                   fi
 
                   set_remote_credentials
-                  /usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > /etc/puppetlabs/puppet/ssl/certs/ca.pem
+                  /usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CA_CERT'].Value" --output text > "${PUPPET_CA_PATH}"
                   unset_remote_credentials
                 }
 
@@ -861,7 +846,7 @@ Resources:
                   sed -i 's/pp_region/1.3.6.1.4.1.34380.1.1.18/g' ${CSR_FILE}
                   # END Workaround
 
-                  # clear out extraneous certs and generate a new one
+                  # Clear out extraneous certs and generate a new one
                   ${PUPPET} bootstrap purge
                   ${PUPPET} bootstrap csr
 
@@ -875,12 +860,13 @@ Resources:
                   /usr/local/bin/aws opsworks-cm describe-servers --region=${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query "Servers[0].EngineAttributes[?Name=='PUPPET_API_CRL'].Value" --output text > "${PUPPET_CRL_PATH}"
                   # END Workaround
 
-                  # submit the cert
+                  # Submit the cert
                   ASSOCIATE_TOKEN=$(/usr/local/bin/aws opsworks-cm associate-node --region ${OCM_REGION} --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --node-name ${CERTNAME} --engine-attributes Name=PUPPET_NODE_CSR,Value="`cat ${PP_CSR_PATH}`" --query "NodeAssociationStatusToken" --output text)
 
-                  # wait
+                  # Wait
                   /usr/local/bin/aws opsworks-cm wait node-associated --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-}
-                  # install and verify
+
+                  # Install and verify
                   /usr/local/bin/aws opsworks-cm describe-node-association-status --region ${OCM_REGION} --node-association-status-token "${ASSOCIATE_TOKEN}" --server-name ${OCM_SERVER} ${AWS_CLI_EXTRA_OPTS[@]:-} --query 'EngineAttributes[0].Value' --output text > ${PP_CERT_PATH}
 
                   unset_remote_credentials
@@ -930,7 +916,6 @@ Resources:
                 # Create a file with current PID to indicate that process is running.
                 echo $$ > "${PID_FILE}"
 
-                # order of execution of functions
                 set_aws_settings
                 prepare_puppet
                 establish_trust
@@ -939,9 +924,8 @@ Resources:
                 associate_node
                 run_puppet
 
-                ## script ran successfully.
-                # Delete the cron file that triggers this script!
-                rm -f /etc/cron.d/bootstrap-puppet-starter*
+                # If we reach this point, the script ran successfully -> delete the cron file that re-triggers this script
+                rm -f /etc/cron.d/bootstrap-puppet-starter
               mode: "000744"
               owner: "root"
               group: "root"
@@ -1113,20 +1097,6 @@ Resources:
             # Fix: __main__.MultipleBundlesError: Multiple versions of the CLI were found in /opt/aws/awscli-bundle/packages. Please clear out this directory before proceeding.
             0200_cleanup:
               command: "rm -rf /opt/aws/awscli-bundle"
-
-        # Make sure the AWS CloudFormation Helper Scripts are present
-        # See: https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
-        EnsureCfnBootstrap:
-          commands:
-            0100_yum_reinstall_cfn_bootstrap:
-              test: "which yum && rpm -q aws-cfn-bootstrap"
-              command: "yum reinstall --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm"
-            0200_yum_install_cfn_bootstrap_centos:
-              test: "which yum && ! rpm -q aws-cfn-bootstrap && test -f /etc/centos-release"
-              command: "yum install --assumeyes https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm"
-            0300_yum_install_cfn_bootstrap_rhel:
-              test: "which yum && ! rpm -q aws-cfn-bootstrap && test ! -f /etc/centos-release"
-              command: "cd /tmp && wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz && easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-latest.tar.gz"
 
         # Make sure the cfn-hup helper that detects changes in resource metadata and runs user-specified actions when a change is detected are present
         # See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-hup.html
