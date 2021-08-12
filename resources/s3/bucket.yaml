@@ -177,7 +177,7 @@ Resources:
         Statement:
         - Action:
           - "s3:GetObject"
-          - "s3:ListObject"
+          - "s3:ListBucket"
           Effect: "Allow"
           Resource:
           - !GetAtt Bucket.Arn
