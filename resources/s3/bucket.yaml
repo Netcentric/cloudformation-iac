@@ -172,7 +172,6 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       Description: !Sub "Allows the owners of this Policy to read from the S3 Bucket \"${Bucket}\""
-      ManagedPolicyName: !Sub "${RootStackName}-pol-bucket-${Designation}-ro-access"
       PolicyDocument:
         Statement:
         - Action:
@@ -190,7 +189,6 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       Description: !Sub "Allows the owners of this Policy to read from and write to the S3 Bucket \"${Bucket}\""
-      ManagedPolicyName: !Sub "${RootStackName}-pol-bucket-${Designation}-rw-access"
       PolicyDocument:
         Statement:
         - Action:
