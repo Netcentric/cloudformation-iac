@@ -634,6 +634,7 @@ Resources:
           - SetHostname
           - EnsureAwsCli
           - EnsureCfnHup
+          - EnsureSsmAgent
           - BootstrapPuppet
           - BootstrapVolumes
           init-set:
@@ -1144,6 +1145,59 @@ Resources:
                 files:
                 - "/etc/cfn/cfn-hup.conf"
                 - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+
+        # Make sure the AWS SSM-Agent is present
+        EnsureSsmAgent:
+          files:
+            /opt/aws/init/install-ssm-agent.sh:
+              content: |
+                #!/usr/bin/env bash
+
+                # ************************************
+                # This file is managed by CloudFormation
+                # Do not modify!
+                # ************************************
+
+                # Determine region. Reqrd for package download.
+                AWS_REGION=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
+
+                # Determine which rpm-frontend to use, based on OS-version
+                if [ -f "/etc/os-release" ]; then
+                  source /etc/os-release
+                else
+                  source /usr/lib/os-release
+                fi
+
+                case "$ID" in
+                  'centos'|'rhel')
+                    case "$VERSION" in
+                      '7')
+                        RPMINSTALLER="yum"
+                        ;;
+                      '8')
+                        RPMINSTALLER="dnf"
+                        ;;
+                      *)
+                        echo "Unsupported OS version"
+                        exit 1
+                        ;;
+                    esac
+                    ;;
+                  *)
+                    echo "Unsupported OS"
+                    exit 1
+                    ;;
+                esac
+
+                # main
+                ${RPMINSTALLER} install -y  https://s3.${AWS_REGION}.amazonaws.com/amazon-ssm-${AWS_REGION}/latest/linux_amd64/amazon-ssm-agent.rpm
+                systemctl enable amazon-ssm-agent
+                systemctl start amazon-ssm-agent
+
+                exit 0
+              mode: "000755"
+              owner: "root"
+              group: "root"
 
         # Is only started in initial run of cfn-init and sets a puppet installer cronjob
         InitializePuppet:
