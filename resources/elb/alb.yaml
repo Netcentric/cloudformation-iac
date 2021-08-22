@@ -616,4 +616,4 @@ Resources:
 Outputs:
   SecurityGroupLb:
     Description: "The Security Group that is attached to the Load Balancer ${RootStackName}-alb-${Designation}."
-    Value: !Ref SecurityGroupLb
+    Value: !GetAtt SecurityGroupLb.GroupId
