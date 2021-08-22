@@ -494,11 +494,11 @@ Resources:
       AssumeRolePolicyDocument:
         Statement:
         - Action:
-          - sts:AssumeRole
+          - "sts:AssumeRole"
           Effect: Allow
           Principal:
             Service:
-            - ec2.amazonaws.com
+            - "ec2.amazonaws.com"
         Version: "2012-10-17"
       Description: !Sub "Role that defines the privileges of the EC2 Instance \"${RootStackName}-instance-${Designation}\"."
       ManagedPolicyArns: !Ref IamManagedPolicies
