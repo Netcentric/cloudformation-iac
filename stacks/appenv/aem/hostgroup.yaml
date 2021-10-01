@@ -35,6 +35,7 @@ Metadata:
       Parameters:
       - AvailabilityZone
       - IamInstanceProfile
+      - KmsKeyId
       - RootKeyName
       - SubnetId
     - Label:
@@ -161,6 +162,11 @@ Parameters:
     Type: String
     Default: ""
 
+  KmsKeyId:
+    Description: "The identifier (ID, Alias, ARN, Alias ARN) of the AWS KMS key to use for Amazon EBS encryption (example: \"arn:aws:kms:us-east-1:012345678910:1234abcd-12ab-34cd-56ef-1234567890ab\")."
+    Type: String
+    Default: ""
+
   RootKeyName:
     Description: "The name of the Amazon EC2 key pair that will be used to access the Instances via SSH."
     Type: AWS::EC2::KeyPair::KeyName
@@ -184,7 +190,7 @@ Parameters:
     Default: "disabled"
 
   FeatureVolumeEncryption:
-    Description: "Whether all Volumes of all Instance should be encrypted or not."
+    Description: "Whether all Volumes of all Instance should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "false"
@@ -611,6 +617,7 @@ Resources:
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref AuthorImageId
         InstanceType: !Ref AuthorInstanceType
+        KmsKeyId: !Ref KmsKeyId
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ",", !Ref AuthorSecurityGroupIds ]
         SubnetId: !Ref SubnetId
@@ -679,6 +686,7 @@ Resources:
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref AuthorDispatcherImageId
         InstanceType: !Ref AuthorDispatcherInstanceType
+        KmsKeyId: !Ref KmsKeyId
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ",", !Ref AuthorDispatcherSecurityGroupIds ]
         SubnetId: !Ref SubnetId
@@ -734,6 +742,7 @@ Resources:
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref PublishImageId
         InstanceType: !Ref PublishInstanceType
+        KmsKeyId: !Ref KmsKeyId
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ",", !Ref PublishSecurityGroupIds ]
         SubnetId: !Ref SubnetId
@@ -802,6 +811,7 @@ Resources:
         IamInstanceProfile: !Ref IamInstanceProfile
         ImageId: !Ref PublishDispatcherImageId
         InstanceType: !Ref PublishDispatcherInstanceType
+        KmsKeyId: !Ref KmsKeyId
         RootKeyName: !Ref RootKeyName
         SecurityGroupIds: !Join [ ",", !Ref PublishDispatcherSecurityGroupIds ]
         SubnetId: !Ref SubnetId
