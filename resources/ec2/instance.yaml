@@ -44,6 +44,7 @@ Metadata:
       - IamManagedPolicies
       - ImageId
       - InstanceType
+      - KmsKeyId
       - RootKeyName
       - SecurityGroupIds
       - SubnetId
@@ -147,6 +148,11 @@ Parameters:
     Description: "The instance type (examples: \"t3a.micro\" or \"m5.xlarge\")."
     Type: String
 
+  KmsKeyId:
+    Description: "The identifier (ID, Alias, ARN, Alias ARN) of the AWS KMS key to use for Amazon EBS encryption (example: \"arn:aws:kms:us-east-1:012345678910:1234abcd-12ab-34cd-56ef-1234567890ab\")."
+    Type: String
+    Default: ""
+
   RootKeyName:
     Description: "The name of the Amazon EC2 key pair that will be used to access the Instance via SSH."
     Type: AWS::EC2::KeyPair::KeyName
@@ -183,7 +189,7 @@ Parameters:
     Default: ""
 
   RootDeviceEncryption:
-    Description: "Whether this Volumes should be encrypted or not."
+    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "", "false", "true" ]
     Default: ""
@@ -214,7 +220,7 @@ Parameters:
     Default: "xvdf"
 
   VolumeOptEncryption:
-    Description: "Whether this Volumes should be encrypted or not."
+    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "false"
@@ -250,7 +256,7 @@ Parameters:
     Default: "xvdg"
 
   VolumeTmpEncryption:
-    Description: "Whether this Volumes should be encrypted or not."
+    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "false"
@@ -286,7 +292,7 @@ Parameters:
     Default: "xvdh"
 
   VolumeVarEncryption:
-    Description: "Whether this Volumes should be encrypted or not."
+    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "false"
@@ -402,25 +408,41 @@ Conditions:
   CreateVolumeVar: !Not
     - !Equals [ !Ref VolumeVarSize, 0 ]
 
+  # Whether KmsKeyId has been explicitly provided or not
+  HasKmsKey: !Not
+    - !Equals [ !Ref KmsKeyId, "" ]
+
   # Whether a RootDeviceName has been provided or not (allowing us to customize the root device)
   HasRootDeviceName: !Not
     - !Equals [ !Ref RootDeviceName, "" ]
 
-  #  Whether RootDeviceEncryption has been provided or not
+  # Whether RootDeviceEncryption has been provided or not
   HasRootDeviceEncryption: !Not
     - !Equals [ !Ref RootDeviceEncryption, "" ]
 
-  #  Whether RootDeviceIops has been provided or not
+  # Whether RootDeviceIops has been provided or not
   HasRootDeviceIops: !Not
     - !Equals [ !Ref RootDeviceIops, 0 ]
 
-  #  Whether RootDeviceSize has been provided or not
+  # Whether RootDeviceSize has been provided or not
   HasRootDeviceSize: !Not
     - !Equals [ !Ref RootDeviceSize, 0 ]
 
-  #  Whether RootDeviceType has been provided or not
+  # Whether RootDeviceType has been provided or not
   HasRootDeviceType: !Not
     - !Equals [ !Ref RootDeviceType, "" ]
+
+  # Whether VolumeOptEncryption has been provided or not
+  HasVolumeOptEncryption: !Not
+    - !Equals [ !Ref VolumeOptEncryption, "" ]
+
+  # Whether VolumeTmpEncryption has been provided or not
+  HasVolumeTmpEncryption: !Not
+    - !Equals [ !Ref VolumeTmpEncryption, "" ]
+
+  # Whether VolumeVarEncryption has been provided or not
+  HasVolumeVarEncryption: !Not
+    - !Equals [ !Ref VolumeVarEncryption, "" ]
 
   # Whether the I/O performance can and should be set or not
   SetVolumeOptIops: !And
@@ -530,6 +552,13 @@ Resources:
             Iops: !If
               - HasRootDeviceIops
               - !Ref RootDeviceIops
+              - !Ref AWS::NoValue
+            KmsKeyId: !If
+              - HasRootDeviceEncryption
+              - !If
+                - HasKmsKey
+                - !Ref KmsKeyId
+                - !Ref AWS::NoValue
               - !Ref AWS::NoValue
             VolumeSize: !If
               - HasRootDeviceSize
@@ -1262,6 +1291,13 @@ Resources:
         - SetVolumeOptIops
         - !Ref VolumeOptIops
         - !Ref AWS::NoValue
+      KmsKeyId: !If
+        - HasVolumeOptEncryption
+        - !If
+          - HasKmsKey
+          - !Ref KmsKeyId
+          - !Ref AWS::NoValue
+        - !Ref AWS::NoValue
       Size: !Ref VolumeOptSize
       Tags:
       - Key: "Name"
@@ -1289,6 +1325,13 @@ Resources:
         - SetVolumeTmpIops
         - !Ref VolumeTmpIops
         - !Ref AWS::NoValue
+      KmsKeyId: !If
+        - HasVolumeTmpEncryption
+        - !If
+          - HasKmsKey
+          - !Ref KmsKeyId
+          - !Ref AWS::NoValue
+        - !Ref AWS::NoValue
       Size: !Ref VolumeTmpSize
       Tags:
       - Key: "Name"
@@ -1315,6 +1358,13 @@ Resources:
       Iops: !If
         - SetVolumeVarIops
         - !Ref VolumeVarIops
+        - !Ref AWS::NoValue
+      KmsKeyId: !If
+        - HasVolumeVarEncryption
+        - !If
+          - HasKmsKey
+          - !Ref KmsKeyId
+          - !Ref AWS::NoValue
         - !Ref AWS::NoValue
       Size: !Ref VolumeVarSize
       Tags:
