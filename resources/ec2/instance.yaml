@@ -189,7 +189,7 @@ Parameters:
     Default: ""
 
   RootDeviceEncryption:
-    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
+    Description: "Whether this Volume should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "", "false", "true" ]
     Default: ""
@@ -220,7 +220,7 @@ Parameters:
     Default: "xvdf"
 
   VolumeOptEncryption:
-    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
+    Description: "Whether this Volume should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "false"
@@ -256,7 +256,7 @@ Parameters:
     Default: "xvdg"
 
   VolumeTmpEncryption:
-    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
+    Description: "Whether this Volume should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "false"
@@ -292,7 +292,7 @@ Parameters:
     Default: "xvdh"
 
   VolumeVarEncryption:
-    Description: "Whether this Volumes should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
+    Description: "Whether this Volume should be encrypted or not. If the encrypted state is true but you do not specify KmsKeyId, your KMS key for EBS is used."
     Type: String
     AllowedValues: [ "false", "true" ]
     Default: "false"
