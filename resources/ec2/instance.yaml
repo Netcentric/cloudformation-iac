@@ -347,6 +347,10 @@ Conditions:
   # Naming
   #----------------------------
 
+  # Whether HasHostedZoneName has been explicitly provided or not
+  HasHostedZoneName: !Not
+    - !Equals [ !Ref HostedZoneName, "" ]
+
   # Whether HostName has been explicitly provided or not
   HasHostName: !Not
     - !Equals [ !Ref HostName, "" ]
@@ -380,8 +384,7 @@ Conditions:
   #----------------------------
 
   # If no Hosted Zone was given, we won't create a DNS Record
-  CreateDnsRecord: !Not
-    - !Equals [ !Ref HostedZoneName, "" ]
+  CreateDnsRecord: !Condition HasHostedZoneName
 
   #----------------------------
   # Storage
@@ -1260,20 +1263,28 @@ Resources:
             0100_sysconfig:
               command: !Sub
                 # "Fn::Sub" prevents bash parameter substitution, so we use "sed" instead
-                - "HOSTNAME=$(echo ${ActualHostName}-${HostedZoneName} | sed 's/\\./-/g'); echo HOSTNAME=$HOSTNAME >> /etc/sysconfig/network"
+                - "HOSTNAME=$(echo ${ActualHostName}${ActualDomainName} | sed 's/\\./-/g'); echo HOSTNAME=$HOSTNAME >> /etc/sysconfig/network"
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
                     - !Sub "${RootStackName}-${Designation}"
+                  ActualDomainName: !If
+                    - HasHostedZoneName
+                    - !Sub "-${HostedZoneName}"
+                    - ""
             0200_systemd:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: !Sub
                 # "Fn::Sub" prevents bash parameter substitution, so we use "sed" instead
-                - "HOSTNAME=$(echo ${ActualHostName}-${HostedZoneName} | sed 's/\\./-/g'); hostnamectl set-hostname $HOSTNAME"
+                - "HOSTNAME=$(echo ${ActualHostName}${ActualDomainName} | sed 's/\\./-/g'); hostnamectl set-hostname $HOSTNAME"
                 - ActualHostName: !If
                     - HasHostName
                     - !Ref HostName
                     - !Sub "${RootStackName}-${Designation}"
+                  ActualDomainName: !If
+                    - HasHostedZoneName
+                    - !Sub "-${HostedZoneName}"
+                    - ""
 
   #=======================================
   # Volumes
