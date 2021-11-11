@@ -175,12 +175,18 @@ Resources:
       PolicyDocument:
         Statement:
         - Action:
-          - "s3:GetObject"
-          - "s3:GetObjectTagging"
+          - "s3:GetBucketLocation"
           - "s3:ListBucket"
+          - "s3:ListBucketMultipartUploads"
           Effect: "Allow"
           Resource:
           - !GetAtt Bucket.Arn
+        - Action:
+          - "s3:GetObject"
+          - "s3:GetObjectTagging"
+          - "s3:ListMultipartUploadParts"
+          Effect: "Allow"
+          Resource:
           - !Sub "${Bucket.Arn}/*"
         Version: "2012-10-17"
 
@@ -192,14 +198,22 @@ Resources:
       PolicyDocument:
         Statement:
         - Action:
-          - "s3:DeleteObject"
-          - "s3:GetObject"
-          - "s3:GetObjectTagging"
+          - "s3:GetBucketLocation"
           - "s3:ListBucket"
-          - "s3:PutObject"
+          - "s3:ListBucketMultipartUploads"
           Effect: "Allow"
           Resource:
           - !GetAtt Bucket.Arn
+        - Action:
+          - "s3:AbortMultipartUpload"
+          - "s3:DeleteObject"
+          - "s3:GetObject"
+          - "s3:GetObjectTagging"
+          - "s3:ListMultipartUploadParts"
+          - "s3:PutObject"
+          - "s3:PutObjectTagging"
+          Effect: "Allow"
+          Resource:
           - !Sub "${Bucket.Arn}/*"
         Version: "2012-10-17"
 
