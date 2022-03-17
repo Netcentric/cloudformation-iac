@@ -1132,9 +1132,11 @@ Resources:
             /opt/aws/awscli-bundle: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
           commands:
             0100_install_awscli:
+              test: "test ! -d /usr/local/aws-cli/v2/current"
               command: '/opt/aws/awscli-bundle/aws/install --install-dir "/usr/local/aws-cli" --bin-dir "/usr/local/bin"'
             # Fix: __main__.MultipleBundlesError: Multiple versions of the CLI were found in /opt/aws/awscli-bundle/packages. Please clear out this directory before proceeding.
             0200_cleanup:
+              test: "test -d /opt/aws/awscli-bundle"
               command: "rm -rf /opt/aws/awscli-bundle"
 
         # Make sure the cfn-hup helper that detects changes in resource metadata and runs user-specified actions when a change is detected are present
