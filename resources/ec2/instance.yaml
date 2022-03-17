@@ -639,6 +639,12 @@ Resources:
                     yum install --assumeyes jq
                     ;;
                   '8')
+                    # fix centos8 repos since they are EOL
+                    sed -i 's/mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/CentOS-Linux-*.repo
+                    sed -i 's/#baseurl=/baseurl=/g' /etc/yum.repos.d/CentOS-Linux-*.repo
+                    sed -i 's@baseurl=http://mirror.centos.org/@baseurl=https://vault.centos.org/@g' /etc/yum.repos.d/CentOS-Linux-*.repo
+                    dnf clean all
+
                     ARCHIVE='aws-cfn-bootstrap-py3-latest.tar.gz'
                     EASY_INSTALL='/usr/bin/easy_install-3'
 
@@ -666,8 +672,9 @@ Resources:
           - SetHostname
           - EnsureAwsCli
           - EnsureCfnHup
-          - EnsureSsmAgent
           - BootstrapPuppet
+          - EnsureSsmAgent
+          - EnsureCloudwatchAgent
           - BootstrapVolumes
           init-set:
           - InitializePuppet
@@ -1126,9 +1133,11 @@ Resources:
             /opt/aws/awscli-bundle: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
           commands:
             0100_install_awscli:
+              test: "test ! -d /usr/local/aws-cli/v2/current"
               command: '/opt/aws/awscli-bundle/aws/install --install-dir "/usr/local/aws-cli" --bin-dir "/usr/local/bin"'
             # Fix: __main__.MultipleBundlesError: Multiple versions of the CLI were found in /opt/aws/awscli-bundle/packages. Please clear out this directory before proceeding.
             0200_cleanup:
+              test: "test -d /opt/aws/awscli-bundle"
               command: "rm -rf /opt/aws/awscli-bundle"
 
         # Make sure the cfn-hup helper that detects changes in resource metadata and runs user-specified actions when a change is detected are present
@@ -1163,12 +1172,36 @@ Resources:
                 [Install]
                 WantedBy=multi-user.target
           commands:
-            0100_systemd_enable_cfn_hup:
+            0100_make_sure_folder_exists:
+              test: "test ! -d /opt/aws/bin"
+              command: "mkdir -p /opt/aws/bin"
+            0200_create_symlink_cfn_hup:
+              test: "test ! -h /opt/aws/bin/cfn-hup"
+              command: "ln -s /usr/local/bin/cfn-hup /opt/aws/bin/cfn-hup"
+            0300_create_symlink_cfn-init:
+              test: "test ! -h /opt/aws/bin/cfn-init"
+              command: "ln -s /usr/local/bin/cfn-init /opt/aws/bin/cfn-init"
+            0400_systemd_enable_cfn_hup:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: "systemctl enable cfn-hup.service"
-            0200_systemd_start_cfn_hup:
+            0500_systemd_start_cfn_hup:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: "systemctl start cfn-hup.service"
+            0600_systemd_start_cfn_signal:
+              test: "test ! -h /opt/aws/bin/cfn-signal"
+              command: "ln -s /usr/local/bin/cfn-signal /opt/aws/bin/cfn-signal"
+            0700_systemd_start_cfn_metadata:
+              test: "test ! -h /opt/aws/bin/cfn-get-metadata"
+              command: "ln -s /usr/local/bin/cfn-get-metadata /opt/aws/bin/cfn-get-metadata"
+            0800_systemd_start_cfn_event:
+              test: "test ! -h /opt/aws/bin/cfn-send-cmd-event"
+              command: "ln -s /usr/local/bin/cfn-send-cmd-event /opt/aws/bin/cfn-send-cmd-event"
+            0900_systemd_start_cfn_result:
+              test: "test ! -h /opt/aws/bin/cfn-send-cmd-result"
+              command: "ln -s /usr/local/bin/cfn-send-cmd-result /opt/aws/bin/cfn-send-cmd-result"
+            1000_create_symlink_cfn_elect:
+              test: "test ! -h /opt/aws/bin/cfn-elect-cmd-leader"
+              command: "ln -s /usr/local/bin/cfn-elect-cmd-leader /opt/aws/bin/cfn-elect-cmd-leader"
           services:
             sysvinit:
               cfn-hup:
@@ -1223,13 +1256,154 @@ Resources:
 
                 # main
                 ${RPMINSTALLER} install -y  https://s3.${AWS_REGION}.amazonaws.com/amazon-ssm-${AWS_REGION}/latest/linux_amd64/amazon-ssm-agent.rpm
-                systemctl enable amazon-ssm-agent
-                systemctl start amazon-ssm-agent
 
                 exit 0
               mode: "000755"
               owner: "root"
               group: "root"
+          commands:
+            0100_install_ssm_agent:
+              command: "bash /opt/aws/init/install-ssm-agent.sh"
+            0200_systemd_enable_aws_ssm_agent:
+              test: 'test $(ps --no-headers -o comm 1) == "systemd"'
+              command: "systemctl enable amazon-ssm-agent.service"
+            0300_systemd_start_aws_ssm_agent:
+              test: 'test $(ps --no-headers -o comm 1) == "systemd"'
+              command: "systemctl start amazon-ssm-agent.service"
+
+        # Make sure the AWS Cloudwatch-Agent is present and configured
+        EnsureCloudwatchAgent:
+          files:
+            /opt/aws/init/install-cloudwatch-agent.sh:
+              content: |
+                #!/usr/bin/env bash
+
+                # ************************************
+                # This file is managed by CloudFormation
+                # Do not modify!
+                # ************************************
+
+                # Determine region. Reqrd for package download.
+                AWS_REGION=$(curl --silent --show-error --retry 3 http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
+
+                # Determine which rpm-frontend to use, based on OS-version
+                if [ -f "/etc/os-release" ]; then
+                  source /etc/os-release
+                else
+                  source /usr/lib/os-release
+                fi
+
+                case "$ID" in
+                  'centos'|'rhel')
+                    case "$VERSION_ID" in
+                      '7')
+                        RPMINSTALLER="yum"
+                        ;;
+                      '8')
+                        RPMINSTALLER="dnf"
+                        ;;
+                      *)
+                        echo "Unsupported OS version"
+                        exit 1
+                        ;;
+                    esac
+                    ;;
+                  *)
+                    echo "Unsupported OS"
+                    exit 1
+                    ;;
+                esac
+
+                # main
+                ${RPMINSTALLER} install -y  https://s3.${AWS_REGION}.amazonaws.com/amazoncloudwatch-agent-${AWS_REGION}/centos/amd64/latest/amazon-cloudwatch-agent.rpm
+
+                exit 0
+              mode: "000755"
+              owner: "root"
+              group: "root"
+
+            /opt/aws/init/cloudwatch-agent-config.json:
+              content: |
+                {
+                  "agent": {
+                    "metrics_collection_interval": 60,
+                    "region": "eu-central-1",
+                    "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log",
+                    "debug": false,
+                    "run_as_user": "cwagent"
+                  },
+                  "metrics": {
+                    "append_dimensions": {
+                      "InstanceId": "${aws:InstanceId}",
+                      "InstanceType": "${aws:InstanceType}"
+                    },
+                    "aggregation_dimensions": [
+                      ["InstanceId"],
+                      ["InstanceType"],
+                      ["InstanceId", "InstanceType"]
+                    ],
+                    "metrics_collected": {
+                      "cpu": {
+                        "measurement": [
+                          "cpu_usage_idle",
+                          "cpu_usage_iowait",
+                          "cpu_usage_user",
+                          "cpu_usage_system"
+                        ],
+                        "metrics_collection_interval": 60,
+                        "totalcpu": true
+                      },
+                      "disk": {
+                        "measurement": [
+                          "used_percent",
+                          "inodes_free"
+                        ],
+                        "metrics_collection_interval": 60,
+                        "resources": [
+                          "*"
+                        ]
+                      },
+                      "diskio": {
+                        "measurement": [
+                          "io_time"
+                        ],
+                        "metrics_collection_interval": 60,
+                        "resources": [
+                          "*"
+                        ]
+                      },
+                      "mem": {
+                        "measurement": [
+                          "mem_used_percent"
+                        ],
+                        "metrics_collection_interval": 60
+                      },
+                      "processes": {
+                        "measurement": [
+                          "running",
+                          "sleeping",
+                          "dead",
+                          "blocked",
+                          "wait",
+                          "total"
+                        ],
+                        "metrics_collection_interval": 60
+                      }
+                    }
+                  }
+                }
+              mode: "000755"
+              owner: "root"
+              group: "root"
+          commands:
+            0100_install_cloudwatch_agent:
+              command: "bash /opt/aws/init/install-cloudwatch-agent.sh"
+            0200_systemd_enable_aws_cloudwatch_agent:
+              test: 'test $(ps --no-headers -o comm 1) == "systemd"'
+              command: "systemctl enable amazon-cloudwatch-agent.service"
+            0300_load_configstart_aws_cloudwatch_agent:
+              test: 'test $(ps --no-headers -o comm 1) == "systemd"'
+              command: "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/init/cloudwatch-agent-config.json"
 
         # Is only started in initial run of cfn-init and sets a puppet installer cronjob
         InitializePuppet:
