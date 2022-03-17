@@ -1171,12 +1171,36 @@ Resources:
                 [Install]
                 WantedBy=multi-user.target
           commands:
-            0100_systemd_enable_cfn_hup:
+            0100_make_sure_folder_exists:
+              test: "test ! -d /opt/aws/bin"
+              command: "mkdir -p /opt/aws/bin"
+            0200_create_symlink_cfn_hup:
+              test: "test ! -h /opt/aws/bin/cfn-hup"
+              command: "ln -s /usr/local/bin/cfn-hup /opt/aws/bin/cfn-hup"
+            0300_create_symlink_cfn-init:
+              test: "test ! -h /opt/aws/bin/cfn-init"
+              command: "ln -s /usr/local/bin/cfn-init /opt/aws/bin/cfn-init"
+            0400_systemd_enable_cfn_hup:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: "systemctl enable cfn-hup.service"
-            0200_systemd_start_cfn_hup:
+            0500_systemd_start_cfn_hup:
               test: 'test $(ps --no-headers -o comm 1) == "systemd"'
               command: "systemctl start cfn-hup.service"
+            0600_systemd_start_cfn_signal:
+              test: "test ! -h /opt/aws/bin/cfn-signal"
+              command: "ln -s /usr/local/bin/cfn-signal /opt/aws/bin/cfn-signal"
+            0700_systemd_start_cfn_metadata:
+              test: "test ! -h /opt/aws/bin/cfn-get-metadata"
+              command: "ln -s /usr/local/bin/cfn-get-metadata /opt/aws/bin/cfn-get-metadata"
+            0800_systemd_start_cfn_event:
+              test: "test ! -h /opt/aws/bin/cfn-send-cmd-event"
+              command: "ln -s /usr/local/bin/cfn-send-cmd-event /opt/aws/bin/cfn-send-cmd-event"
+            0900_systemd_start_cfn_result:
+              test: "test ! -h /opt/aws/bin/cfn-send-cmd-result"
+              command: "ln -s /usr/local/bin/cfn-send-cmd-result /opt/aws/bin/cfn-send-cmd-result"
+            1000_create_symlink_cfn_elect:
+              test: "test ! -h /opt/aws/bin/cfn-elect-cmd-leader"
+              command: "ln -s /usr/local/bin/cfn-elect-cmd-leader /opt/aws/bin/cfn-elect-cmd-leader"
           services:
             sysvinit:
               cfn-hup:
