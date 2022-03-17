@@ -639,6 +639,12 @@ Resources:
                     yum install --assumeyes jq
                     ;;
                   '8')
+                    # fix centos8 repos since they are EOL
+                    sed -i 's/mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/CentOS-Linux-*.repo
+                    sed -i 's/#baseurl=/baseurl=/g' /etc/yum.repos.d/CentOS-Linux-*.repo
+                    sed -i 's@baseurl=http://mirror.centos.org/@baseurl=https://vault.centos.org/@g' /etc/yum.repos.d/CentOS-Linux-*.repo
+                    dnf clean all
+
                     ARCHIVE='aws-cfn-bootstrap-py3-latest.tar.gz'
                     EASY_INSTALL='/usr/bin/easy_install-3'
 
