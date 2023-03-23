@@ -172,15 +172,21 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       Description: !Sub "Allows the owners of this Policy to read from the S3 Bucket \"${Bucket}\""
-      ManagedPolicyName: !Sub "${RootStackName}-pol-bucket-${Designation}-ro-access"
       PolicyDocument:
         Statement:
         - Action:
-          - "s3:GetObject"
-          - "s3:ListObject"
+          - "s3:GetBucketLocation"
+          - "s3:ListBucket"
+          - "s3:ListBucketMultipartUploads"
           Effect: "Allow"
           Resource:
           - !GetAtt Bucket.Arn
+        - Action:
+          - "s3:GetObject"
+          - "s3:GetObjectTagging"
+          - "s3:ListMultipartUploadParts"
+          Effect: "Allow"
+          Resource:
           - !Sub "${Bucket.Arn}/*"
         Version: "2012-10-17"
 
@@ -189,17 +195,25 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       Description: !Sub "Allows the owners of this Policy to read from and write to the S3 Bucket \"${Bucket}\""
-      ManagedPolicyName: !Sub "${RootStackName}-pol-bucket-${Designation}-rw-access"
       PolicyDocument:
         Statement:
         - Action:
-          - "s3:DeleteObject"
-          - "s3:GetObject"
+          - "s3:GetBucketLocation"
           - "s3:ListBucket"
-          - "s3:PutObject"
+          - "s3:ListBucketMultipartUploads"
           Effect: "Allow"
           Resource:
           - !GetAtt Bucket.Arn
+        - Action:
+          - "s3:AbortMultipartUpload"
+          - "s3:DeleteObject"
+          - "s3:GetObject"
+          - "s3:GetObjectTagging"
+          - "s3:ListMultipartUploadParts"
+          - "s3:PutObject"
+          - "s3:PutObjectTagging"
+          Effect: "Allow"
+          Resource:
           - !Sub "${Bucket.Arn}/*"
         Version: "2012-10-17"
 

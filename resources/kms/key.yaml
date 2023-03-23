@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation IaC --- A KMS Key with a custom Alias"
+
+################################################################################
+#
+# Decision Trees:
+#
+################################################################################
+
+
+################################################################################
+#
+# Metadata (optional)
+# provide details about the template
+#
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/metadata-section-structure.html
+#
+################################################################################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Naming details"
+      Parameters:
+      - RootStackName
+    - Label:
+        default: "Key configuration"
+      Parameters:
+      - EnableKeyRotation
+      - KeySpec
+      - KeyUsage
+      - MultiRegion
+    - Label:
+        default: "Alias configuration"
+      Parameters:
+      - AliasName
+
+
+################################################################################
+#
+# Parameters (optional)
+# Passes values into templates when creating a stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+#
+################################################################################
+
+Parameters:
+  #=======================================
+  # Naming details
+  #=======================================
+
+  RootStackName:
+    Description: "Name of the top-level stack to which this stack, if nested, ultimately belongs (this stacks name else)."
+    Type: String
+
+  #=======================================
+  # Key configuration
+  #=======================================
+
+  EnableKeyRotation:
+    Description: "Whether automatic rotation of the key material for the specified KMS key is enabled or not."
+    Type: String
+    AllowedValues: [ "false", "true" ]
+    Default: "true"
+
+  KeySpec:
+    Description: "The type of KMS key to create."
+    Type: String
+    AllowedValues: [ "SYMMETRIC_DEFAULT", "RSA_2048, RSA_3072", "RSA_4096", "ECC_NIST_P256", "ECC_NIST_P384", "ECC_NIST_P521", "ECC_SECG_P256K1" ]
+
+  KeyUsage:
+    Description: "The cryptographic operations for which you can use the KMS key."
+    Type: String
+    AllowedValues: [ "ENCRYPT_DECRYPT", "SIGN_VERIFY" ]
+    Default: "ENCRYPT_DECRYPT"
+
+  MultiRegion:
+    Description: "Whether or not to create a multi-Region primary key that can be replicated in other AWS Regions."
+    Type: String
+    AllowedValues: [ "false", "true" ]
+    Default: "false"
+
+  #=======================================
+  # Alias configuration
+  #=======================================
+
+  AliasName:
+    Description: "The name of the Alias. The \"alias\" prefix will be added automatically."
+    Type: String
+    Default: ""
+
+
+################################################################################
+#
+# Conditions (optional)
+# Includes statements that define when a resource is created or when a property is defined
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+#
+################################################################################
+
+Conditions:
+
+  # Whether an Alias should be created or not
+  CreateAlias: !Not
+    - !Equals [ !Ref AliasName, "" ]
+
+  # Whether the KMS key is a symmetric key or not
+  HasSymmetricKey: !Equals [ !Ref KeySpec, "SYMMETRIC_DEFAULT" ]
+
+
+################################################################################
+#
+# Resources (required)
+# Declares the AWS resources that you want to include in the stack
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+#
+################################################################################
+
+Resources:
+  # The actual Key
+  Key:
+    Type: AWS::KMS::Key
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      Description: !Sub "Customer managed AWS KMS key created for \"${RootStackName}\""
+      EnableKeyRotation: !If
+        - HasSymmetricKey
+        - !Ref EnableKeyRotation
+        - !Ref AWS::NoValue
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+        - Action:
+          - "kms:*"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Resource: "*"
+          Sid: "Allow administration of the key"
+      KeySpec: !Ref KeySpec
+      KeyUsage: !Ref KeyUsage
+      MultiRegion: !Ref MultiRegion
+
+  # An optional alias for better readability
+  KeyAlias:
+    Condition: CreateAlias
+    Type: AWS::KMS::Alias
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      AliasName: !Sub "alias/${AliasName}"
+      TargetKeyId: !GetAtt Key.KeyId
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+  KeyAliasName:
+    Condition: CreateAlias
+    Description: "The AliasName of the KeyAlias."
+    Value: !Ref KeyAlias
+
+  KeyArn:
+    Description: "The Amazon Resource Name (ARN) of the KMS key (example: \"arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab\")."
+    Value: !GetAtt Key.Arn
+
+  KeyId:
+    Description: "The key ID of the KMS key (example: \"1234abcd-12ab-34cd-56ef-1234567890ab\")."
+    Value: !GetAtt Key.KeyId

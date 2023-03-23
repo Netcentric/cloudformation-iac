@@ -61,6 +61,7 @@ Parameters:
   RouteTableId:
     Description: "The ID of a Route Table (only required if using a Transit Gateway)."
     Type: String
+    Default: ""
 
   TransitGatewayId:
     Description: "The ID of a Transit Gateway."

@@ -181,10 +181,10 @@ Resources:
               elif request_type == 'Delete':
                 change_resource_record_sets('DELETE', hosted_zone, record_type, record_name, record_target, record_ttl)
               else:
-                print "Unexpected Request Type"
+                print("Unexpected Request Type")
                 raise Exception("Unexpected Request Type")
 
-              print "Completed successfully"
+              print("Completed successfully")
               response_status = 'SUCCESS'
               response_data = {}
               sendResponse(event, context, response_status, response_data)
@@ -196,7 +196,7 @@ Resources:
               sendResponse(event, context, response_status, response_data)
 
           def change_resource_record_sets(action, hosted_zone, type, name, target, ttl):
-            print action + ": '" + type + "' record '" + name + "' pointing to '" + target + "' in '" + hosted_zone + "' with TTL=" + ttl
+            print(action + ": '" + type + "' record '" + name + "' pointing to '" + target + "' in '" + hosted_zone + "' with TTL=" + ttl)
             response = client.change_resource_record_sets(
               HostedZoneId=hosted_zone,
               ChangeBatch= {
@@ -224,8 +224,8 @@ Resources:
               'Data': response_data
             })
 
-            print event['ResponseURL']
-            print data
+            print(event['ResponseURL'])
+            print(data)
 
             opener = urllib2.build_opener(urllib2.HTTPHandler)
             request = urllib2.Request(url=event['ResponseURL'], data=data)
@@ -237,7 +237,7 @@ Resources:
       Description: !Sub "Lambda that is triggered by SNS and manages the Route 53 records for ${Designation} (${HostedZone})."
       Handler: "index.lambda_handler"
       Role: !GetAtt ManageR53RecordRole.Arn
-      Runtime: "python2.7"
+      Runtime: "python3.8"
 
   # Role permitting the Lambda to manipulate Route 53 records
   ManageR53RecordRole:

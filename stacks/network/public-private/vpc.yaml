@@ -514,9 +514,9 @@ Resources:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: "All Instances (DMZ)"
-      GroupId: !Ref SecurityGroupDmz
+      GroupId: !GetAtt SecurityGroupDmz.GroupId
       IpProtocol: "-1"
-      SourceSecurityGroupId: !Ref SecurityGroupDmz
+      SourceSecurityGroupId: !GetAtt SecurityGroupDmz.GroupId
 
 
 ################################################################################
@@ -537,7 +537,7 @@ Outputs:
   SecurityGroupDmz:
     Condition: EnableDmz
     Description: "The ID of SecurityGroup that can be used to create a VPC wide DMZ."
-    Value: !Ref SecurityGroupDmz
+    Value: !GetAtt SecurityGroupDmz.GroupId
 
   PublicRouteTable:
     Description: "PublicRouteTable"

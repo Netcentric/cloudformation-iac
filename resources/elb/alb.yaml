@@ -28,6 +28,11 @@ Description: "CloudFormation IaC --- EC2 Application Load Balancer with optional
 #       true  -> Added
 #       false -> None [default]
 #
+#   WAF:
+#     HeaderName != "" && TokenString != ""
+#       true  -> WAF enabled
+#       false -> WAF disabled [default]
+#
 ################################################################################
 
 
@@ -51,6 +56,7 @@ Metadata:
     - Label:
         default: "ALB configuration"
       Parameters:
+      - AllowAllTraffic
       - DeregistrationDelay
       - EnableHttp2
       - IdleTimeout
@@ -81,6 +87,11 @@ Metadata:
       - HealthyThresholdCount
       - UnhealthyThresholdCount
     - Label:
+        default: "WAF filter configuration (optional)"
+      Parameters:
+      - HeaderName
+      - TokenString
+    - Label:
         default: "Target 01"
       Parameters:
       - Instance1Id
@@ -95,6 +106,7 @@ Metadata:
     - Label:
         default: "DNS Record configuration (optional)"
       Parameters:
+      - DnsName
       - DnsServiceToken
       - HostedZoneName
       - TimeToLive
@@ -126,6 +138,12 @@ Parameters:
   # ALB configuration
   #=======================================
 
+  AllowAllTraffic:
+    Description: "Whether the Load Balancer should permit TCP or UDP flows for all traffic (0.0.0.0/0) in both directions for all ports (0-65535) or not."
+    Type: String
+    AllowedValues: [ "true", "false" ]
+    Default: "true"
+
   DeregistrationDelay:
     Description: "The amount of time, in seconds, for Elastic Load Balancing to wait before changing the state of a deregistering target from draining to unused (0 to 3600)."
     Type: Number
@@ -151,6 +169,7 @@ Parameters:
   SecurityGroupIds:
     Description: "A list that contains the IDs for VPC Security Groups to assign to the Load Balancer."
     Type: CommaDelimitedList
+    Default: ""
 
   StickinessDuration:
     Description: "The time period, in seconds, during which requests from a client should be routed to the same target (0 to 604800)."
@@ -239,6 +258,20 @@ Parameters:
     Default: 2
 
   #=======================================
+  # WAF filter configuration (optional)
+  #=======================================
+
+  HeaderName:
+    Description: "The name of the request header that will be scanned for the TokenString (example: x-origin-key)."
+    Type: String
+    Default: ""
+
+  TokenString:
+    Description: "The value that you want AWS WAF to search for. The maximum length of the value is 50 bytes."
+    Type: String
+    Default: ""
+
+  #=======================================
   # Target 01
   #=======================================
 
@@ -268,6 +301,11 @@ Parameters:
   # DNS Record configuration (optional)
   #=======================================
 
+  DnsName:
+    Description: "The name that will be used for this load balancers DNS name (example: \"a.assets\"; default: \"${RootStackName}-lb-${Designation}\")."
+    Type: String
+    Default: ""
+
   DnsServiceToken:
     Description: "The SNS Topic ARN or Lambda function ARN that was provided to access the service that manages remote DNS Records (only required if DNS Records are managed in a different account; must be from the same region as this stack)."
     Type: String
@@ -294,6 +332,17 @@ Parameters:
 ################################################################################
 
 Conditions:
+  # If the HTTP port is 0, then HTTP traffic will be disabled
+  AllowAllTrafficHttp: !And
+    - !Equals [ !Ref AllowAllTraffic, "true" ]
+    - !Not
+      - !Equals [ !Ref HttpPort, 0 ]
+
+  # If the HTTPS port is 0, then HTTPS traffic will be disabled
+  AllowAllTrafficHttps: !And
+    - !Equals [ !Ref AllowAllTraffic, "true" ]
+    - !Not
+      - !Equals [ !Ref HttpsPort, 0 ]
 
   # If a Hosted Zone has been provided, we will create a DNS Record
   CreateDnsRecord: !Not
@@ -311,6 +360,13 @@ Conditions:
   EnableStickiness: !Not
     - !Equals [ !Ref StickinessDuration, 0 ]
 
+  # If a Header and a Token have been provided, the WAF filter will be enabled
+  EnableWafFilter: !And
+    - !Not
+      - !Equals [ !Ref HeaderName, "" ]
+    - !Not
+      - !Equals [ !Ref TokenString, "" ]
+
   # If no 2nd Instance has been provided, we won't add a respective target
   Has2ndTarget: !Not
     - !Equals [ !Ref Instance2Id, "" ]
@@ -318,6 +374,10 @@ Conditions:
   # If no 3rd Instance has been provided, we won't add a respective target
   Has3rdTarget: !Not
     - !Equals [ !Ref Instance3Id, "" ]
+
+  # Whether DnsName has been explicitly provided or not
+  HasDnsName: !Not
+    - !Equals [ !Ref DnsName, "" ]
 
 
 ################################################################################
@@ -331,6 +391,38 @@ Conditions:
 
 Resources:
   #=======================================
+  # Security Groups
+  #=======================================
+
+  SecurityGroupLb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "Rules that control the traffic from and to the Load Balancer ${RootStackName}-alb-${Designation}"
+      SecurityGroupIngress:
+      # If HTTP is enabled, then let the HTTP port pass through this Security Group
+      - !If
+        - AllowAllTrafficHttp
+        - CidrIp: "0.0.0.0/0"
+          Description: "Internet HTTP"
+          FromPort: !Ref HttpPort
+          IpProtocol: "tcp"
+          ToPort: !Ref HttpPort
+        - !Ref AWS::NoValue
+      # If HTTPS is enabled, then let the HTTPS port pass through this Security Group
+      - !If
+        - AllowAllTrafficHttps
+        - CidrIp: "0.0.0.0/0"
+          Description: "Internet HTTPS"
+          FromPort: !Ref HttpsPort
+          IpProtocol: "tcp"
+          ToPort: !Ref HttpsPort
+        - !Ref AWS::NoValue
+      Tags:
+      - Key: "Name"
+        Value: !Sub "${RootStackName}-sg-alb-${Designation}"
+      VpcId: !Ref VpcId
+
+  #=======================================
   # ALB
   #=======================================
 
@@ -343,7 +435,15 @@ Resources:
       - Key: "routing.http2.enabled"
         Value: !Ref EnableHttp2
       Scheme: !Ref Scheme
-      SecurityGroups: !Ref SecurityGroupIds
+      # This is the cloudformation way to add an element to a list
+      SecurityGroups: !Split
+        - ","
+        - !Join
+          - ","
+          - - !GetAtt SecurityGroupLb.GroupId
+            - !Join
+              - ","
+              - !Ref SecurityGroupIds
       Subnets: !Ref SubnetIds
       Tags:
       - Key: "Name"
@@ -429,6 +529,55 @@ Resources:
       Protocol: "HTTPS"
 
   #=======================================
+  # WAF Filter
+  #=======================================
+
+  WafByteMatchSet:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::ByteMatchSet
+    Properties:
+      ByteMatchTuples:
+      - FieldToMatch:
+          Data: !Ref HeaderName
+          Type: "HEADER"
+        PositionalConstraint: "EXACTLY"
+        TargetString: !Ref TokenString
+        TextTransformation: "NONE"
+      Name: !Sub "${RootStackName}-waf-verify-origin-matcher"
+
+  WafRule:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::Rule
+    Properties:
+      MetricName: "VerifyOriginRule"
+      Name: !Sub "${RootStackName}-waf-verify-origin-rule"
+      Predicates:
+      - DataId: !Ref WafByteMatchSet
+        Negated: false
+        Type: "ByteMatch"
+
+  WafWebAcl:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::WebACL
+    Properties:
+      DefaultAction:
+        Type: "BLOCK"
+      MetricName: "VerifyOrigin"
+      Name: !Sub "${RootStackName}-waf-verify-origin-acl"
+      Rules:
+      - Action:
+          Type: "ALLOW"
+        Priority: 1
+        RuleId: !Ref WafRule
+
+  WafWebAclAssociation:
+    Condition: EnableWafFilter
+    Type: AWS::WAFRegional::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref ApplicationLoadBalancer
+      WebACLId: !Ref WafWebAcl
+
+  #=======================================
   # Route 53 DNS Records
   #=======================================
 
@@ -441,7 +590,10 @@ Resources:
       Parameters:
         # DNS Record configuration
         #
-        DnsName: !Sub "${RootStackName}-lb-${Designation}"
+        DnsName: !If
+          - HasDnsName
+          - !Ref DnsName
+          - !Sub "${RootStackName}-lb-${Designation}"
         HostedZoneName: !Ref HostedZoneName
         Target: !GetAtt ApplicationLoadBalancer.DNSName
         TimeToLive: !Ref TimeToLive
@@ -450,3 +602,18 @@ Resources:
         # Remote DNS Record configuration (optional)
         #
         ServiceToken: !Ref DnsServiceToken
+
+
+################################################################################
+#
+# Outputs (optional)
+# Declares output values that you can import into other stacks (to create cross-stack references)
+#
+# See: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html
+#
+################################################################################
+
+Outputs:
+  SecurityGroupLb:
+    Description: "The Security Group that is attached to the Load Balancer ${RootStackName}-alb-${Designation}."
+    Value: !GetAtt SecurityGroupLb.GroupId
